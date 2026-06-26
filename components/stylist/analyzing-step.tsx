@@ -1,6 +1,3 @@
-// components/stylist/analyzing-step.tsx
-// Теперь реально анализирует фото через Claude Vision
-
 "use client"
 
 import { useEffect, useState } from "react"
@@ -16,70 +13,6 @@ const stages = [
   "Формируем персональную карточку…",
 ]
 
-// Анализ фото через Claude Vision
-async function analyzePhotoWithClaude(form: StylistForm): Promise<Partial<{
-  colorType: string
-  skinAnalysis: string
-  bodyAnalysis: string
-}>> {
-  if (!form.photo) return {}
-
-  try {
-    const prompt = `Ты персональный AI-стилист. Проанализируй фото человека.
-
-Данные пользователя:
-- Пол: ${form.gender === "male" ? "мужчина" : "женщина"}
-- Возраст: ${form.age} лет
-- Рост: ${form.height} см, Вес: ${form.weight} кг
-- Тип фигуры (по мнению пользователя): ${form.bodyType}
-- Цвет кожи: ${form.skinTone}, Цвет волос: ${form.hairColor}
-- Форма лица: ${form.faceShape || "не указана"}
-
-На основе фото и данных определи:
-1. Подтверди или уточни тип фигуры
-2. Определи цветотип (Весна/Лето/Осень/Зима)
-3. Дай краткую характеристику внешности
-
-Ответь ТОЛЬКО в JSON:
-{
-  "colorType": "Лето",
-  "bodyConfirmed": true,
-  "bodyNote": "подтверждаем тип фигуры",
-  "note": "краткая характеристика 1 предложение"
-}`
-
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 300,
-        messages: [{
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: form.photo.startsWith("data:image/png") ? "image/png" : "image/jpeg",
-                data: form.photo.split(",")[1],
-              }
-            },
-            { type: "text", text: prompt }
-          ]
-        }]
-      })
-    })
-
-    if (!response.ok) return {}
-    const data = await response.json()
-    const text = data.content?.[0]?.text || ""
-    return JSON.parse(text.replace(/```json|```/g, "").trim())
-  } catch {
-    return {}
-  }
-}
-
 export function AnalyzingStep({
   form,
   onDone,
@@ -89,25 +22,39 @@ export function AnalyzingStep({
 }) {
   const [active, setActive] = useState(0)
   const [visionData, setVisionData] = useState<any>(null)
+  const [visionDone, setVisionDone] = useState(false)
 
   useEffect(() => {
-    // Запускаем Vision анализ параллельно с анимацией
+    // Вызываем серверный роут — без CORS проблем
     if (form.photo) {
-      analyzePhotoWithClaude(form).then(data => {
-        setVisionData(data)
+      fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ form }),
       })
+        .then(r => r.json())
+        .then(data => {
+          setVisionData(data)
+          setVisionDone(true)
+        })
+        .catch(() => setVisionDone(true)) // при ошибке продолжаем без Vision
+    } else {
+      setVisionDone(true)
     }
   }, [])
 
   useEffect(() => {
     if (active >= stages.length) {
-      // Передаём данные Vision в родительский компонент
-      const t = setTimeout(() => onDone(visionData), 600)
-      return () => clearTimeout(t)
+      // Ждём завершения Vision перед переходом
+      if (visionDone) {
+        const t = setTimeout(() => onDone(visionData), 600)
+        return () => clearTimeout(t)
+      }
+      return
     }
     const t = setTimeout(() => setActive((a) => a + 1), 850)
     return () => clearTimeout(t)
-  }, [active, visionData, onDone])
+  }, [active, visionDone, visionData, onDone])
 
   return (
     <div className="mx-auto flex max-w-md flex-col items-center py-10 text-center">
@@ -116,7 +63,7 @@ export function AnalyzingStep({
       </span>
       <h1 className="mt-6 font-serif text-3xl">Анализируем ваш образ</h1>
       <p className="mt-2 leading-relaxed text-muted-foreground">
-        AI изучает фото и подбирает рекомендации персонально для вас.
+        Claude AI изучает фото и подбирает рекомендации персонально для вас.
       </p>
 
       <ul className="mt-8 w-full space-y-3 text-left">
