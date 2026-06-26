@@ -1,0 +1,285 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  /* ─── Шрифты — Cormorant Garamond + Jost ─── */
+  --font-heading: var(--font-cormorant), 'Cormorant Garamond', serif;
+  --font-serif: var(--font-cormorant), 'Cormorant Garamond', serif;
+  --font-sans: var(--font-jost), 'Jost', sans-serif;
+  --font-mono: 'GeistMono', monospace;
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  color-scheme: light;
+  /* Светлая премиальная палитра: ivory / cream / sand / champagne */
+  --background: oklch(0.985 0.012 82);
+  --foreground: oklch(0.255 0.018 55);
+  --card: oklch(0.998 0.006 92);
+  --card-foreground: oklch(0.255 0.018 55);
+  --popover: oklch(0.998 0.006 92);
+  --popover-foreground: oklch(0.255 0.018 55);
+  --primary: oklch(0.39 0.045 58);
+  --primary-foreground: oklch(0.985 0.012 82);
+  --secondary: oklch(0.943 0.026 78);
+  --secondary-foreground: oklch(0.34 0.026 58);
+  --muted: oklch(0.928 0.020 78);
+  --muted-foreground: oklch(0.515 0.026 60);
+  --accent: oklch(0.56 0.086 72); /* было 0.72, теперь WCAG AA 4.52:1 */
+  --accent-foreground: oklch(0.985 0.012 82); /* белый текст на кнопке — контраст 4.71:1 */
+  --destructive: oklch(0.55 0.145 28);
+  --border: oklch(0.875 0.026 78);
+  --input: oklch(0.875 0.026 78);
+  --ring: oklch(0.72 0.086 72);
+  --chart-1: oklch(0.72 0.086 72);
+  --chart-2: oklch(0.66 0.055 62);
+  --chart-3: oklch(0.54 0.040 58);
+  --chart-4: oklch(0.81 0.052 85);
+  --chart-5: oklch(0.45 0.034 55);
+  --radius: 0.85rem;
+  --sidebar: oklch(0.998 0.006 92);
+  --sidebar-foreground: oklch(0.255 0.018 55);
+  --sidebar-primary: oklch(0.39 0.045 58);
+  --sidebar-primary-foreground: oklch(0.985 0.012 82);
+  --sidebar-accent: oklch(0.56 0.086 72);
+  --sidebar-accent-foreground: oklch(0.985 0.012 82);
+  --sidebar-border: oklch(0.875 0.026 78);
+  --sidebar-ring: oklch(0.72 0.086 72);
+}
+
+.dark {
+  color-scheme: light;
+  --background: oklch(0.975 0.014 78);
+  --foreground: oklch(0.255 0.018 55);
+  --card: oklch(0.992 0.008 90);
+  --card-foreground: oklch(0.255 0.018 55);
+  --popover: oklch(0.992 0.008 90);
+  --popover-foreground: oklch(0.255 0.018 55);
+  --primary: oklch(0.39 0.045 58);
+  --primary-foreground: oklch(0.985 0.012 82);
+  --secondary: oklch(0.925 0.024 78);
+  --secondary-foreground: oklch(0.34 0.026 58);
+  --muted: oklch(0.915 0.020 78);
+  --muted-foreground: oklch(0.515 0.026 60);
+  --accent: oklch(0.56 0.086 72); /* было 0.72, теперь WCAG AA 4.52:1 */
+  --accent-foreground: oklch(0.985 0.012 82); /* белый текст на кнопке — контраст 4.71:1 */
+  --destructive: oklch(0.55 0.145 28);
+  --border: oklch(0.85 0.025 78);
+  --input: oklch(0.85 0.025 78);
+  --ring: oklch(0.72 0.086 72);
+  --chart-1: oklch(0.72 0.086 72);
+  --chart-2: oklch(0.66 0.055 62);
+  --chart-3: oklch(0.54 0.040 58);
+  --chart-4: oklch(0.81 0.052 85);
+  --chart-5: oklch(0.45 0.034 55);
+  --sidebar: oklch(0.992 0.008 90);
+  --sidebar-foreground: oklch(0.255 0.018 55);
+  --sidebar-primary: oklch(0.39 0.045 58);
+  --sidebar-primary-foreground: oklch(0.985 0.012 82);
+  --sidebar-accent: oklch(0.56 0.086 72);
+  --sidebar-accent-foreground: oklch(0.985 0.012 82);
+  --sidebar-border: oklch(0.85 0.025 78);
+  --sidebar-ring: oklch(0.72 0.086 72);
+}
+
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 12% 0%, oklch(0.955 0.038 78 / 0.72), transparent 30rem),
+      radial-gradient(circle at 88% 10%, oklch(0.94 0.030 62 / 0.45), transparent 26rem),
+      linear-gradient(180deg, var(--background) 0%, oklch(0.955 0.018 82) 100%);
+  }
+
+  ::selection {
+    background: oklch(0.86 0.060 76);
+    color: var(--foreground);
+  }
+  html {
+    @apply font-sans;
+  }
+
+  /* ─── Cormorant Garamond — красивые заголовки ─── */
+  .font-serif {
+    font-family: var(--font-cormorant), 'Cormorant Garamond', serif;
+    letter-spacing: 0.02em;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-cormorant), 'Cormorant Garamond', serif;
+  }
+
+  main {
+    position: relative;
+  }
+
+  .bg-card {
+    box-shadow: 0 18px 50px -34px oklch(0.34 0.026 58 / 0.32);
+  }
+
+  input::placeholder {
+    color: oklch(0.63 0.020 65);
+  }
+}
+
+/* ─── Плавные переходы между шагами ─── */
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeSlideOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Класс для анимации появления шага */
+.step-enter {
+  animation: fadeSlideIn 0.35s ease forwards;
+}
+
+/* Класс для анимации исчезновения шага */
+.step-exit {
+  animation: fadeSlideOut 0.25s ease forwards;
+}
+
+/* Плавное появление карточек */
+.card-enter {
+  animation: fadeSlideIn 0.3s ease forwards;
+}
+
+/* Задержки для карточек — каждая появляется чуть позже */
+.card-enter:nth-child(1) { animation-delay: 0ms; }
+.card-enter:nth-child(2) { animation-delay: 60ms; }
+.card-enter:nth-child(3) { animation-delay: 120ms; }
+.card-enter:nth-child(4) { animation-delay: 180ms; }
+.card-enter:nth-child(5) { animation-delay: 240ms; }
+.card-enter:nth-child(6) { animation-delay: 300ms; }
+
+/* Плавные переходы для всех интерактивных элементов */
+button, a, input, [role="button"] {
+  transition: all 0.15s ease;
+}
+
+/* Плавное появление страниц результатов */
+.page-enter {
+  animation: fadeSlideIn 0.4s ease forwards;
+}
+
+/* Плавный скролл */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ─── Мобильные фиксы ─── */
+
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+@media (max-width: 640px) {
+  button, [role="button"] {
+    min-height: 44px;
+  }
+
+  .fixed.inset-0 > div {
+    max-height: 95vh;
+    overflow-y: auto;
+  }
+
+  .rounded-2xl.border.p-6 {
+    padding: 1rem;
+  }
+}
+
+@media (min-width: 480px) {
+  .xs\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ─── Оптимизация изображений ─── */
+img {
+  max-width: 100%;
+  height: auto;
+  /* Плавная загрузка */
+  transition: opacity 0.3s ease;
+}
+
+img[loading="lazy"] {
+  opacity: 0;
+}
+
+img.loaded {
+  opacity: 1;
+}
+
+/* Предотвращаем layout shift для изображений */
+img:not([width]):not([height]) {
+  aspect-ratio: auto;
+}
