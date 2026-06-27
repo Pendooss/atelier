@@ -22,8 +22,34 @@ export function PhotoUpload({
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+
     const reader = new FileReader()
-    reader.onload = () => onChange(reader.result as string)
+    reader.onload = (ev) => {
+      const img = new window.Image()
+      img.onload = () => {
+        // Сжимаем до максимум 800px по большей стороне
+        const MAX = 800
+        let { width, height } = img
+        if (width > MAX || height > MAX) {
+          if (width > height) {
+            height = Math.round((height * MAX) / width)
+            width = MAX
+          } else {
+            width = Math.round((width * MAX) / height)
+            height = MAX
+          }
+        }
+        const canvas = document.createElement("canvas")
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext("2d")!
+        ctx.drawImage(img, 0, 0, width, height)
+        // JPEG качество 0.85 — баланс качества и размера
+        const compressed = canvas.toDataURL("image/jpeg", 0.85)
+        onChange(compressed)
+      }
+      img.src = ev.target?.result as string
+    }
     reader.readAsDataURL(file)
   }
 
@@ -71,7 +97,6 @@ export function PhotoUpload({
           {compliment}
         </p>
       )}
-      {/* Строка безопасности — всегда видна */}
       <p className="mt-2 text-center text-xs text-muted-foreground">
         🔒 Фото не сохраняются · Только для анализа
       </p>
