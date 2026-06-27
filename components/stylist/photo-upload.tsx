@@ -28,7 +28,7 @@ export function PhotoUpload({
       const img = new window.Image()
       img.onload = () => {
         // Сжимаем до максимум 800px по большей стороне
-        const MAX = 800
+        const MAX = 512
         let { width, height } = img
         if (width > MAX || height > MAX) {
           if (width > height) {
@@ -45,7 +45,7 @@ export function PhotoUpload({
         const ctx = canvas.getContext("2d")!
         ctx.drawImage(img, 0, 0, width, height)
         // JPEG качество 0.85 — баланс качества и размера
-        const compressed = canvas.toDataURL("image/jpeg", 0.85)
+        const compressed = canvas.toDataURL("image/jpeg", 0.7)
         onChange(compressed)
       }
       img.src = ev.target?.result as string
