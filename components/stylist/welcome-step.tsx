@@ -380,6 +380,14 @@ export function WelcomeStep({ onStart }: { onStart: () => void }) {
               </div>
               <p className="text-sm text-muted-foreground">{EXAMPLE_RESULT.shoes}</p>
             </div>
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <span className="text-base">💇</span>
+                <span className="text-sm font-semibold text-foreground">Причёска</span>
+                <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent">Бесплатно</span>
+              </div>
+              <p className="text-sm text-muted-foreground">{EXAMPLE_RESULT.hairTip}</p>
+            </div>
           </div>
           <div className="border-t border-border/60 bg-accent/5 px-6 py-4">
             <div className="flex items-center justify-between">
