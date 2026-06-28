@@ -397,34 +397,41 @@ export function ResultStep({
 
       {/* Сводка */}
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        <div className="flex items-center gap-4 rounded-2xl border border-border/80 bg-card/90 p-5">
-          {form.photo && (
-            <img
-              src={form.photo}
-              alt="Ваше фото"
-              loading="lazy"
-              className="h-24 w-20 shrink-0 rounded-lg object-cover"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
-            />
-          )}
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-            <div>
-              <dt className="text-muted-foreground">Тип фигуры</dt>
-              <dd className="font-medium">{bodyType?.label ?? "—"}</dd>
+        <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card/90 p-5">
+          {/* Цветовой блок вместо фото */}
+          <div className="absolute inset-0 opacity-10"
+            style={{ background: `linear-gradient(135deg, ${rec.palette[0]?.hex}, ${rec.palette[2]?.hex})` }} />
+          <div className="relative flex items-center gap-4">
+            {/* Мини-палитра */}
+            <div className="flex shrink-0 flex-col gap-1.5">
+              {rec.palette.slice(0, 4).map((c, i) => (
+                <div key={i} className="h-10 w-10 rounded-lg border border-white/20 shadow-sm"
+                  style={{ backgroundColor: c.hex }} />
+              ))}
             </div>
             <div>
-              <dt className="text-muted-foreground">Форма лица</dt>
-              <dd className="font-medium">{faceShape?.label ?? "Не указана"}</dd>
+              <div className="text-xs font-semibold uppercase tracking-widest text-accent mb-1">Ваш цветотип</div>
+              <div className="font-serif text-2xl font-semibold text-foreground">{rec.colorType}</div>
+              <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <div>
+                  <dt className="text-muted-foreground">Тип фигуры</dt>
+                  <dd className="font-medium">{bodyType?.label ?? "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Форма лица</dt>
+                  <dd className="font-medium">{faceShape?.label ?? "Не указана"}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Рост</dt>
+                  <dd className="font-medium">{form.height || "—"} см</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Пол</dt>
+                  <dd className="font-medium">{form.gender === "male" ? "Мужской" : "Женский"}</dd>
+                </div>
+              </dl>
             </div>
-            <div>
-              <dt className="text-muted-foreground">Рост</dt>
-              <dd className="font-medium">{form.height || "—"} см</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Цветотип</dt>
-              <dd className="font-medium">{rec.colorType}</dd>
-            </div>
-          </dl>
+          </div>
         </div>
 
         <div className="rounded-2xl border border-border/80 bg-card/90 p-5">
