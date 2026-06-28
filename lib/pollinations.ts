@@ -9,19 +9,9 @@ export async function generateClothingImage(
 ): Promise<string | null> {
   const genderWord = gender === "male" ? "mens" : "womens"
   const prompt = `${genderWord} ${itemName} ${colorName} color fashion clothing studio white background minimal elegant product photo`
-  
-  try {
-    const encodedPrompt = encodeURIComponent(prompt)
-    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=640&nologo=true&seed=${Math.floor(Math.random() * 1000)}`
-    
-    // Проверяем что изображение загружается
-    const resp = await fetch(url)
-    if (!resp.ok) return null
-    
-    return url
-  } catch {
-    return null
-  }
+  const seed = Math.floor(Math.random() * 9999)
+  // Возвращаем URL напрямую без fetch — браузер сам загрузит изображение
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=640&nologo=true&seed=${seed}`
 }
 
 // Генерация фото образа
@@ -32,18 +22,8 @@ export async function generateOutfitImage(
   itemNames: string[]
 ): Promise<string | null> {
   const genderWord = gender === "male" ? "stylish man" : "stylish woman"
-  const items = itemNames.slice(0, 3).join(" ")
+  const items = itemNames.slice(0, 3).join(", ")
   const prompt = `${genderWord} wearing ${items} ${colorType} colors ${occasion} fashion editorial photography elegant modern high quality`
-
-  try {
-    const encodedPrompt = encodeURIComponent(prompt)
-    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=512&height=768&nologo=true&seed=${Math.floor(Math.random() * 1000)}`
-    
-    const resp = await fetch(url)
-    if (!resp.ok) return null
-    
-    return url
-  } catch {
-    return null
-  }
+  const seed = Math.floor(Math.random() * 9999)
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=768&nologo=true&seed=${seed}`
 }
