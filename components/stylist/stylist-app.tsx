@@ -192,7 +192,9 @@ export function StylistApp() {
 
   // ─── КРИТИЧНО: сохраняем форму + результат при завершении анализа ───
   async function handleAnalysisDone() {
-    localStorage.setItem("atelier_form", JSON.stringify(form))
+    // Сохраняем форму БЕЗ фото — фото слишком большое для localStorage на мобильном
+    const formWithoutPhoto = { ...form, photo: null, facePhoto: null }
+    localStorage.setItem("atelier_form", JSON.stringify(formWithoutPhoto))
     const result = buildRecommendation(form)
     localStorage.setItem("atelier_result", JSON.stringify(result))
     if (user) {
