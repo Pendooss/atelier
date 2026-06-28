@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowLeft, Check, X, Wand2, Image } from "lucide-react"
+import { ArrowLeft, Check, X, Wand2, Image, ZoomIn } from "lucide-react"
 import Link from "next/link"
 import { getWardrobeItemPhoto } from "@/lib/unsplash"
 import { generateClothingImage } from "@/lib/pollinations"
@@ -53,10 +53,50 @@ function buildItems(result: StylistResult) {
   }
 }
 
-function ClothingCard({ item, gender, mode }: {
+// ─── Лайтбокс ────────────────────────────────────────────
+function Lightbox({ photoUrl, name, onClose }: {
+  photoUrl: string
+  name: string
+  onClose: () => void
+}) {
+  useEffect(() => {
+    document.body.style.overflow = "hidden"
+    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
+    window.addEventListener("keydown", handleKey)
+    return () => {
+      document.body.style.overflow = ""
+      window.removeEventListener("keydown", handleKey)
+    }
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+      onClick={onClose}
+    >
+      <button
+        onClick={onClose}
+        className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+      >
+        <X className="h-5 w-5" />
+      </button>
+      <div className="relative max-h-[90vh] max-w-[90vw]" onClick={e => e.stopPropagation()}>
+        <img
+          src={photoUrl}
+          alt={name}
+          className="max-h-[85vh] max-w-[85vw] rounded-2xl object-contain shadow-2xl"
+        />
+        <div className="mt-3 text-center text-sm text-white/70">{name}</div>
+      </div>
+    </div>
+  )
+}
+
+function ClothingCard({ item, gender, mode, onOpenLightbox }: {
   item: ClothingItem
   gender: "male" | "female"
   mode: ImageMode
+  onOpenLightbox: (url: string, name: string) => void
 }) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [photoAuthor, setPhotoAuthor] = useState<string | null>(null)
@@ -68,8 +108,7 @@ function ClothingCard({ item, gender, mode }: {
     setLoading(true)
     setPhotoUrl(null)
     if (mode === "stability") {
-      const colorName = item.color
-      generateClothingImage(item.name, colorName, gender).then((url) => {
+      generateClothingImage(item.name, item.color, gender).then((url) => {
         setPhotoUrl(url)
         setLoading(false)
       })
@@ -83,7 +122,11 @@ function ClothingCard({ item, gender, mode }: {
 
   return (
     <div className={`overflow-hidden rounded-2xl border bg-card shadow-sm transition-all hover:-translate-y-1 hover:shadow-md ${isAvoid ? "border-destructive/20" : "border-border hover:border-accent"}`}>
-      <div className="relative overflow-hidden" style={{ height: "320px" }}>
+      <div
+        className="relative overflow-hidden cursor-pointer group"
+        style={{ height: "320px" }}
+        onClick={() => photoUrl && onOpenLightbox(photoUrl, item.name)}
+      >
         {loading ? (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-secondary">
             <div className="h-10 w-10 animate-spin rounded-full border-2 border-accent border-t-transparent" />
@@ -91,8 +134,14 @@ function ClothingCard({ item, gender, mode }: {
           </div>
         ) : photoUrl ? (
           <>
-            <img src={photoUrl} alt={item.name} className="h-full w-full object-cover" />
+            <img src={photoUrl} alt={item.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+            {/* Иконка увеличения */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/50 backdrop-blur">
+                <ZoomIn className="h-6 w-6 text-white" />
+              </div>
+            </div>
             <div className={`absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full shadow-md ${isAvoid ? "bg-destructive" : "bg-accent"}`}>
               {isAvoid ? <X className="h-5 w-5 text-white" /> : <Check className="h-5 w-5 text-white" />}
             </div>
@@ -106,6 +155,7 @@ function ClothingCard({ item, gender, mode }: {
             )}
             {mode === "unsplash" && photoAuthor && (
               <a href={`${photoAuthorUrl}?utm_source=atelier&utm_medium=referral`} target="_blank" rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
                 className="absolute bottom-2 right-2 rounded bg-black/50 px-2 py-0.5 text-[10px] text-white hover:bg-black/70">
                 {photoAuthor} / Unsplash
               </a>
@@ -133,6 +183,7 @@ export default function WardrobePage() {
   const [result, setResult] = useState<StylistResult | null>(null)
   const [tab, setTab] = useState<"wear" | "avoid">("wear")
   const [imageMode, setImageMode] = useState<ImageMode>("unsplash")
+  const [lightbox, setLightbox] = useState<{ url: string; name: string } | null>(null)
 
   useEffect(() => {
     const saved = localStorage.getItem("atelier_result")
@@ -154,6 +205,14 @@ export default function WardrobePage() {
 
   return (
     <main className="min-h-screen bg-background">
+      {lightbox && (
+        <Lightbox
+          photoUrl={lightbox.url}
+          name={lightbox.name}
+          onClose={() => setLightbox(null)}
+        />
+      )}
+
       <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
           <Link href="/?step=3" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -170,10 +229,10 @@ export default function WardrobePage() {
           <h1 className="mt-2 font-serif text-4xl font-semibold">Визуальный гардероб</h1>
           <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
             {gender === "male" ? "Мужская" : "Женская"} одежда под ваш цветотип <strong>{result.colorType}</strong>.
+            <span className="block mt-1 text-xs text-muted-foreground/70">Нажмите на фото для просмотра</span>
           </p>
         </div>
 
-        {/* Переключатель фото */}
         <div className="mb-5 flex items-center justify-center gap-2">
           <span className="text-xs text-muted-foreground">Фотографии:</span>
           <div className="flex overflow-hidden rounded-lg border border-border">
@@ -189,7 +248,6 @@ export default function WardrobePage() {
           {imageMode === "stability" && <span className="text-xs text-muted-foreground italic">~30 сек/фото</span>}
         </div>
 
-        {/* Табы */}
         <div className="mb-6 flex justify-center gap-3">
           <button onClick={() => setTab("wear")}
             className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-all ${tab === "wear" ? "bg-accent text-accent-foreground shadow-sm" : "border border-border bg-background text-muted-foreground hover:border-accent"}`}>
@@ -203,7 +261,13 @@ export default function WardrobePage() {
 
         <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
           {items.map((item) => (
-            <ClothingCard key={`${item.name}-${imageMode}`} item={item} gender={gender} mode={imageMode} />
+            <ClothingCard
+              key={`${item.name}-${imageMode}`}
+              item={item}
+              gender={gender}
+              mode={imageMode}
+              onOpenLightbox={(url, name) => setLightbox({ url, name })}
+            />
           ))}
         </div>
 
