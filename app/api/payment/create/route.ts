@@ -3,11 +3,15 @@ import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest) {
   try {
-    const { amount, description, featureId, returnUrl } = await req.json()
+    const { amount, description, featureId } = await req.json()
 
     const shopId = process.env.YUKASSA_SHOP_ID!
     const secretKey = process.env.YUKASSA_SECRET_KEY!
     const idempotenceKey = `${featureId}-${Date.now()}`
+
+    // После оплаты и при отмене — всегда возвращаем на страницу результата
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.atelier-ai.ru"
+    const returnUrl = `${baseUrl}/?step=3&paid=${featureId}`
 
     const response = await fetch("https://api.yookassa.ru/v3/payments", {
       method: "POST",
