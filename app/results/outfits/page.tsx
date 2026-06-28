@@ -127,27 +127,15 @@ export default function OutfitsPage() {
     setLoading(true)
     setError(false)
     const isMale = result.gender === "male"
-    const prompt = `Ты персональный AI-стилист ATELIER. Составь 4 готовых образа.
-Данные клиента:
-- Пол: ${isMale ? "мужчина" : "женщина"}
-- Цветотип: ${result.colorType}
-- Тип фигуры: ${result.typeTitle}
-- Рекомендуемые вещи: ${result.recommendedItems.join(", ")}
-- Избегать: ${result.avoid.join(", ")}
-- Палитра: ${result.palette.map(p => `${p.name} (${p.hex})`).join(", ")}
-Создай 4 образа: для работы, свидания, прогулки и мероприятия.
-Ответь ТОЛЬКО валидным JSON без markdown:
-{"outfits":[{"id":"work","occasion":"Работа","title":"название","mood":"настроение","items":[{"name":"вещь","detail":"описание","color":"#hex"}]}]}`
 
     try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      const resp = await fetch("/api/outfits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1500, messages: [{ role: "user", content: prompt }] }),
+        body: JSON.stringify({ result }),
       })
-      const data = await resp.json()
-      const text = data.content?.[0]?.text || ""
-      const parsed = JSON.parse(text.replace(/```json|```/g, "").trim())
+      const parsed = await resp.json()
+      if (parsed.error) throw new Error(parsed.error)
       setOutfits(parsed.outfits || [])
     } catch {
       setError(true)
@@ -227,7 +215,7 @@ export default function OutfitsPage() {
           <>
             {error && (
               <div className="mb-4 rounded-xl border border-accent/20 bg-accent/5 p-3 text-center text-xs text-muted-foreground">
-                Показаны базовые рекомендации. После деплоя будут персональные от Claude.
+                Не удалось получить персональные рекомендации. Показаны базовые образы.
               </div>
             )}
             <div className="flex flex-col gap-8">
