@@ -236,7 +236,7 @@ export function StylistApp() {
           {step === 1 && (
             <DataStep form={form} setForm={setForm} onBack={() => goTo(0)} onAnalyze={() => goTo(2)} />
           )}
-          {step === 2 && <AnalyzingStep onDone={handleAnalysisDone} />}
+          {step === 2 && <AnalyzingStep form={form} onDone={handleAnalysisDone} />}
           {step === 3 && (
             <ResultStep
               form={form}
