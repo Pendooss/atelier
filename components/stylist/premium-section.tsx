@@ -16,6 +16,7 @@ const features = [
     icon: Wand2,
     title: "Готовые образы",
     price: "899 ₽",
+    amount: "899.00",
     pitch: "4 полных лука с фото — открыли и сразу знаете как одеться.",
     transform: "Больше не думаете «что надеть»",
     bullets: ["4 лука с фото", "Работа, свидание, прогулка, выход", "Под ваш тип фигуры"],
@@ -27,6 +28,7 @@ const features = [
     icon: Layers,
     title: "Гардероб и шопинг",
     price: "699 ₽",
+    amount: "699.00",
     pitch: "Фото вещей под ваш цветотип + конкретные вещи в Zara, H&M и Uniqlo с ценами.",
     transform: "Знаете что покупать и где это найти",
     bullets: ["Визуальный гардероб", "Магазины с прямыми ссылками", "Бренды под ваш тип"],
@@ -38,6 +40,7 @@ const features = [
     icon: Bot,
     title: "Мой шкаф + AI-чат",
     price: "599 ₽/мес",
+    amount: "599.00",
     pitch: "AI анализирует ваши вещи и составляет образы. Плюс личный стилист в чате 24/7.",
     transform: "Открываете шкаф и всегда знаете что надеть",
     bullets: ["Образы из ваших вещей", "AI-стилист отвечает за секунды", "Знает ваш профиль"],
@@ -53,6 +56,7 @@ const features = [
     transform: "Капсульный гардероб за один вечер",
     bullets: ["12 вещей = 40+ образов", "С фото каждой вещи", "Под вашу палитру"],
     badge: null,
+    amount: "299.00",
     href: "/results/wardrobe-personal",
   },
 ]
@@ -139,6 +143,7 @@ export function PremiumSection({
   async function handleUnlock(feature: typeof features[0]) {
     if (!user) { onAuthRequired(); return }
 
+    // Если уже куплено — открываем сразу
     if (unlocked.includes(feature.id)) {
       localStorage.setItem("atelier_result", JSON.stringify(result))
       window.location.href = feature.href
@@ -147,10 +152,33 @@ export function PremiumSection({
 
     setLoading(feature.id)
     try {
-      await addPurchase(user.id, feature.id, feature.title, feature.price)
-    } catch {}
-    finally { setLoading(null) }
+      // Создаём платёж через ЮКассу
+      const returnUrl = `${window.location.origin}${feature.href}?paid=1`
+      const resp = await fetch("/api/payment/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: (feature as any).amount || "299.00",
+          description: `ATELIER: ${feature.title}`,
+          featureId: feature.id,
+          returnUrl,
+        }),
+      })
+      const data = await resp.json()
+      if (data.confirmationUrl) {
+        // Сохраняем результат перед переходом на оплату
+        localStorage.setItem("atelier_result", JSON.stringify(result))
+        // Редиректим на страницу оплаты ЮКассы
+        window.location.href = data.confirmationUrl
+        return
+      }
+    } catch (e) {
+      console.error("Payment error:", e)
+    } finally {
+      setLoading(null)
+    }
 
+    // Фоллбэк — если оплата недоступна, открываем без оплаты
     setUnlocked((u) => [...u, feature.id])
     localStorage.setItem("atelier_result", JSON.stringify(result))
     window.location.href = feature.href
@@ -219,7 +247,7 @@ export function PremiumSection({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-serif text-lg">{f.price}</span>
                     <Button size="sm" variant={isUnlocked ? "outline" : "default"} disabled={isLoading} onClick={() => handleUnlock(f)}>
-                      {isLoading ? "Открываем..." : isUnlocked ? "Открыть →" : user ? "Открыть" : "Войти и открыть"}
+                      {isLoading ? "Перенаправляем..." : isUnlocked ? "Открыть →" : user ? `Оплатить ${f.price}` : "Войти и открыть"}
                     </Button>
                   </div>
                   {!isUnlocked && (
