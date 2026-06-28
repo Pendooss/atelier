@@ -141,7 +141,7 @@ export function PremiumSection({
 
     if (unlocked.includes(feature.id)) {
       localStorage.setItem("atelier_result", JSON.stringify(result))
-      router.push(feature.href)
+      window.location.href = feature.href
       return
     }
 
@@ -153,7 +153,7 @@ export function PremiumSection({
 
     setUnlocked((u) => [...u, feature.id])
     localStorage.setItem("atelier_result", JSON.stringify(result))
-    router.push(feature.href)
+    window.location.href = feature.href
   }
 
   return (

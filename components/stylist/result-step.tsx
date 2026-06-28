@@ -399,8 +399,13 @@ export function ResultStep({
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
         <div className="flex items-center gap-4 rounded-2xl border border-border/80 bg-card/90 p-5">
           {form.photo && (
-            <img src={form.photo} alt="Ваше фото" loading="lazy"
-              className="h-24 w-20 shrink-0 rounded-lg object-cover" />
+            <img
+              src={form.photo}
+              alt="Ваше фото"
+              loading="lazy"
+              className="h-24 w-20 shrink-0 rounded-lg object-cover"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+            />
           )}
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
             <div>
