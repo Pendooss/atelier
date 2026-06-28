@@ -52,50 +52,19 @@ export default function ShopsPage() {
     setLoading(true)
     setError(false)
     const isMale = result.gender === "male"
-    const stores = isMale ? STORES_MALE : STORES_FEMALE
-    const palette = result.palette.map(p => p.name).join(", ")
-
-    const prompt = `Ты персональный AI-стилист ATELIER. Порекомендуй 6 конкретных вещей из магазинов для клиента.
-
-Данные клиента:
-- Пол: ${isMale ? "мужчина" : "женщина"}
-- Цветотип: ${result.colorType}
-- Тип фигуры: ${result.typeTitle}
-- Рекомендуемые вещи: ${result.recommendedItems.join(", ")}
-- Палитра: ${palette}
-
-Магазины: ${stores.map(s => s.name).join(", ")}
-
-Ответь ТОЛЬКО валидным JSON без markdown:
-{
-  "items": [
-    {
-      "store": "название магазина из списка",
-      "name": "конкретное название вещи",
-      "detail": "цвет, крой и почему подходит (1 предложение)",
-      "price": "ориентировочная цена в рублях",
-      "colorHex": "#hex цвет вещи из палитры клиента"
-    }
-  ]
-}`
 
     try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      const resp = await fetch("/api/shops", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 1000,
-          messages: [{ role: "user", content: prompt }],
-        }),
+        body: JSON.stringify({ result }),
       })
-      const data = await resp.json()
-      const text = data.content?.[0]?.text || ""
-      const parsed = JSON.parse(text.replace(/```json|```/g, "").trim())
+      const parsed = await resp.json()
+      if (parsed.error) throw new Error(parsed.error)
       setItems(parsed.items || [])
     } catch {
       setError(true)
-      // Фоллбэк — статичные данные
+      const stores = isMale ? STORES_MALE : STORES_FEMALE
       const fallback = stores.map((store, i) => ({
         store: store.name,
         name: result.recommendedItems[i] || "Базовая вещь",
@@ -133,69 +102,51 @@ export default function ShopsPage() {
           <div className="w-16" />
         </div>
       </header>
-
       <div className="mx-auto max-w-3xl px-4 py-8">
         <div className="mb-8 text-center">
           <span className="text-xs font-semibold uppercase tracking-widest text-accent">Премиум · 499 ₽</span>
           <h1 className="mt-2 font-serif text-4xl font-semibold">Магазины</h1>
           <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
-            {isMale ? "Мужские" : "Женские"} вещи подобраны AI под ваш цветотип{" "}
-            <strong>{result.colorType}</strong> и тип фигуры.
+            {isMale ? "Мужские" : "Женские"} вещи подобраны AI под ваш цветотип <strong>{result.colorType}</strong>.
           </p>
         </div>
-
         {loading ? (
           <div className="flex flex-col items-center gap-4 py-20">
             <Loader2 className="h-10 w-10 animate-spin text-accent" />
             <p className="text-sm text-muted-foreground">Claude подбирает вещи персонально для вас...</p>
           </div>
         ) : (
-          <>
-            {error && (
-              <div className="mb-4 rounded-xl border border-accent/20 bg-accent/5 p-3 text-center text-xs text-muted-foreground">
-                Показаны базовые рекомендации. После деплоя будут персональные от Claude.
-              </div>
-            )}
-            <div className="grid gap-4 sm:grid-cols-2">
-              {items.map((item, i) => {
-                const store = stores.find(s => s.name === item.store) || stores[i % stores.length]
-                return (
-                  <a key={i} href={store.url} target="_blank" rel="noopener noreferrer"
-                    className="group overflow-hidden rounded-2xl border border-border/80 bg-card/95 shadow-sm transition-all hover:-translate-y-1 hover:border-accent/70 hover:shadow-md">
-                    <div className="relative flex h-48 items-center justify-center" style={{ backgroundColor: item.colorHex + "33" }}>
-                      <div className="flex h-20 w-20 items-center justify-center rounded-2xl shadow-sm" style={{ backgroundColor: item.colorHex }}>
-                        <ShoppingBag className="h-10 w-10 text-white/80" />
-                      </div>
-                      <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-card/95 px-3 py-1 text-xs font-semibold shadow-sm" style={{ color: store.color }}>
-                        {item.store}
-                        <ExternalLink className="h-3 w-3" />
-                      </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {items.map((item, i) => {
+              const store = stores.find(s => s.name === item.store) || stores[i % stores.length]
+              return (
+                <a key={i} href={store.url} target="_blank" rel="noopener noreferrer"
+                  className="group overflow-hidden rounded-2xl border border-border/80 bg-card/95 shadow-sm transition-all hover:-translate-y-1 hover:border-accent/70 hover:shadow-md">
+                  <div className="relative flex h-48 items-center justify-center" style={{ backgroundColor: item.colorHex + "33" }}>
+                    <div className="flex h-20 w-20 items-center justify-center rounded-2xl shadow-sm" style={{ backgroundColor: item.colorHex }}>
+                      <ShoppingBag className="h-10 w-10 text-white/80" />
                     </div>
-                    <div className="p-5">
-                      <div className="font-serif text-lg font-semibold text-foreground">{item.name}</div>
-                      <div className="mt-1 text-sm text-muted-foreground">{item.detail}</div>
-                      <div className="mt-4 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="h-4 w-4 rounded-full border border-border" style={{ backgroundColor: item.colorHex }} />
-                          <span className="text-xs text-muted-foreground">Подобрано AI под ваш цветотип</span>
-                        </div>
-                        <span className="font-serif text-lg font-semibold text-foreground">{item.price}</span>
-                      </div>
+                    <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-card/95 px-3 py-1 text-xs font-semibold shadow-sm" style={{ color: store.color }}>
+                      {item.store}<ExternalLink className="h-3 w-3" />
                     </div>
-                  </a>
-                )
-              })}
-            </div>
-          </>
+                  </div>
+                  <div className="p-5">
+                    <div className="font-serif text-lg font-semibold text-foreground">{item.name}</div>
+                    <div className="mt-1 text-sm text-muted-foreground">{item.detail}</div>
+                    <div className="mt-4 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="h-4 w-4 rounded-full border border-border" style={{ backgroundColor: item.colorHex }} />
+                        <span className="text-xs text-muted-foreground">Под ваш цветотип</span>
+                      </div>
+                      <span className="font-serif text-lg font-semibold text-foreground">{item.price}</span>
+                    </div>
+                  </div>
+                </a>
+              )
+            })}
+          </div>
         )}
-
-        <div className="mt-8 rounded-2xl border border-accent/20 bg-accent/5 p-5 text-center">
-          <p className="text-sm text-muted-foreground">
-            💡 Цены ориентировочные. Нажмите на карточку чтобы перейти в {isMale ? "мужской" : "женский"} раздел магазина.
-          </p>
-        </div>
       </div>
     </main>
   )
 }
-

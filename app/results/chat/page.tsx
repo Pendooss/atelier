@@ -49,31 +49,14 @@ export default function ChatPage() {
     setLoading(true)
 
     try {
-      const systemPrompt = `Ты персональный AI-стилист ATELIER. Отвечай на русском языке, кратко и по делу.
-Профиль клиента:
-- Цветотип: ${result.colorType}
-- Тип внешности: ${result.typeTitle}
-- Тип фигуры: ${result.silhouettes.join(", ")}
-- Рекомендуемые вещи: ${result.recommendedItems.join(", ")}
-- Палитра: ${result.palette.map(p => p.name).join(", ")}
-- Избегать: ${result.avoid.join(", ")}
-Давай конкретные советы учитывая профиль. Максимум 150 слов на ответ.`
-
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      const allMessages = [...messages, userMsg]
+      const resp = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 400,
-          system: systemPrompt,
-          messages: [...messages, userMsg].map((m) => ({
-            role: m.role,
-            content: m.text,
-          })),
-        }),
+        body: JSON.stringify({ messages: allMessages, result }),
       })
       const data = await resp.json()
-      const reply = data.content?.[0]?.text || "Не удалось получить ответ."
+      const reply = data.reply || "Не удалось получить ответ."
       setMessages((m) => [...m, { role: "assistant", text: reply }])
     } catch {
       setMessages((m) => [...m, { role: "assistant", text: "Произошла ошибка. Попробуйте ещё раз." }])
@@ -106,7 +89,6 @@ export default function ChatPage() {
         </div>
       </header>
 
-      {/* Сообщения */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
         <div className="mx-auto max-w-2xl space-y-4">
           {messages.map((msg, i) => (
@@ -139,7 +121,6 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Подсказки */}
       {messages.length <= 1 && (
         <div className="border-t border-border px-4 py-3">
           <div className="mx-auto max-w-2xl">
@@ -156,7 +137,6 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Ввод */}
       <div className="border-t border-border bg-background px-4 py-4">
         <div className="mx-auto flex max-w-2xl gap-3">
           <input
@@ -176,4 +156,3 @@ export default function ChatPage() {
     </main>
   )
 }
-
