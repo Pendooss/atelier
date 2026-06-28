@@ -35,17 +35,30 @@ function NextStepButton({
   result: ReturnType<typeof buildRecommendation>
   onAuthRequired: () => void
 }) {
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
 
   async function handleClick() {
     if (!user) { onAuthRequired(); return }
     setLoading(true)
     try {
-      await addPurchase(user.id, "outfits", "Готовые образы", "899 ₽")
+      localStorage.setItem("atelier_result", JSON.stringify(result))
+      const resp = await fetch("/api/payment/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: "899.00",
+          description: "ATELIER: Готовые образы",
+          featureId: "outfits",
+        }),
+      })
+      const data = await resp.json()
+      if (data.confirmationUrl) {
+        window.location.href = data.confirmationUrl
+        return
+      }
     } catch {}
-    localStorage.setItem("atelier_result", JSON.stringify(result))
-    router.push("/results/outfits")
+    // Фоллбэк — открываем без оплаты
+    window.location.href = "/results/outfits"
     setLoading(false)
   }
 
@@ -55,7 +68,7 @@ function NextStepButton({
       disabled={loading}
       className="rounded-2xl bg-accent px-7 py-3.5 text-base font-semibold text-accent-foreground shadow-md transition-all hover:bg-accent/90 hover:shadow-lg disabled:opacity-60"
     >
-      {loading ? "Открываем..." : user ? "Открыть за 899 ₽" : "Войти и открыть"}
+      {loading ? "Перенаправляем..." : user ? "Открыть за 899 ₽" : "Войти и открыть"}
     </button>
   )
 }
