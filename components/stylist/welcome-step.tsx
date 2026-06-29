@@ -300,7 +300,7 @@ export function WelcomeStep({ onStart }: { onStart: () => void }) {
           </p>
         </div>
         <div className="order-1 lg:order-2">
-          <div className="relative overflow-hidden rounded-[2rem] border border-border/80 bg-card p-2 shadow-2xl max-h-[360px] sm:max-h-none">
+          <div className="relative overflow-hidden rounded-[2rem] border border-border/80 bg-card p-2 shadow-2xl">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/images/hero-stylist.png"
