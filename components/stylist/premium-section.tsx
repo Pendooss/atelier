@@ -172,16 +172,16 @@ export function PremiumSection({
         window.location.href = data.confirmationUrl
         return
       }
+
+      // API ответил, но без confirmationUrl
+      console.error("No confirmationUrl in response:", data)
+      alert("Не удалось создать платёж. Попробуйте ещё раз или напишите в поддержку.")
     } catch (e) {
       console.error("Payment error:", e)
+      alert("Ошибка при создании платежа. Попробуйте ещё раз.")
     } finally {
       setLoading(null)
     }
-
-    // Фоллбэк — если оплата недоступна, открываем без оплаты
-    setUnlocked((u) => [...u, feature.id])
-    localStorage.setItem("atelier_result", JSON.stringify(result))
-    window.location.href = feature.href
   }
 
   return (
