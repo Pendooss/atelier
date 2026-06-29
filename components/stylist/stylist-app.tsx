@@ -147,15 +147,25 @@ export function StylistApp() {
         if (savedForm && savedResult) {
           setForm(JSON.parse(savedForm))
           setStep(3)
-          window.history.replaceState({}, "", "/")
         }
+        // Убираем параметры из URL в любом случае
+        window.history.replaceState({}, "", "/")
       }
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setLoadingUser(false)
+    // ─── КРИТИЧНО: восстанавливаем сессию после редиректа с ЮКассы ───
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        setUser(session.user)
+        setLoadingUser(false)
+      } else {
+        // Сессия не найдена — пробуем обновить токен
+        const { data } = await supabase.auth.refreshSession()
+        setUser(data.session?.user ?? null)
+        setLoadingUser(false)
+      }
     })
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
     })
