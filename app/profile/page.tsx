@@ -48,31 +48,66 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<"purchases" | "history">("purchases")
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session?.user) {
-        router.push("/")
-        return
-      }
-      setUser(session.user)
+    let cancelled = false
+
+    async function loadProfile(currentUser: SupabaseUser) {
+      if (cancelled) return
+      setUser(currentUser)
 
       // Загружаем покупки
       const { data: purchasesData } = await supabase
         .from("purchases")
         .select("*")
-        .eq("user_id", session.user.id)
+        .eq("user_id", currentUser.id)
         .order("purchased_at", { ascending: false })
+      if (cancelled) return
       setPurchases(purchasesData || [])
 
       // Загружаем историю разборов
       const { data: resultsData } = await supabase
         .from("style_results")
         .select("*")
-        .eq("user_id", session.user.id)
+        .eq("user_id", currentUser.id)
         .order("created_at", { ascending: false })
+      if (cancelled) return
       setStyleResults(resultsData || [])
 
       setLoading(false)
+    }
+
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) {
+        await loadProfile(session.user)
+        return
+      }
+
+      // Сессия не найдена сразу — частая ситуация на мобильных сразу после
+      // регистрации/входа, когда токен ещё не успел синхронизироваться.
+      // Пробуем обновить сессию прежде чем редиректить на главную.
+      const { data } = await supabase.auth.refreshSession()
+      if (data.session?.user) {
+        await loadProfile(data.session.user)
+        return
+      }
+
+      if (!cancelled) router.push("/")
+    }
+
+    init()
+
+    // Страховка: если сессия появится с задержкой (мобильные браузеры),
+    // подхватываем её через подписку на изменения, а не редиректим раньше времени.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user && !user) {
+        loadProfile(session.user)
+      }
     })
+
+    return () => {
+      cancelled = true
+      subscription.unsubscribe()
+    }
   }, [router])
 
   async function handleLogout() {
