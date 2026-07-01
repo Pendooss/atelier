@@ -13,7 +13,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 })
 
-// ─── ТИПЫ ───────────────────────────────────────────────
+// ─── ТИПЫ ──────────────────────────────────────────────────
 
 export type Profile = {
   id: string
@@ -38,7 +38,7 @@ export type StyleResult = {
   created_at: string
 }
 
-// ─── АВТОРИЗАЦИЯ ────────────────────────────────────────
+// ─── АВТОРИЗАЦИЯ ───────────────────────────────────────────
 
 // Регистрация
 export async function signUp(email: string, password: string, name: string) {
@@ -86,7 +86,7 @@ export async function getProfile(userId: string): Promise<Profile | null> {
   return data
 }
 
-// ─── ПОКУПКИ ────────────────────────────────────────────
+// ─── ПОКУПКИ ───────────────────────────────────────────────
 
 // Добавить покупку
 export async function addPurchase(
@@ -131,7 +131,7 @@ export async function hasPurchased(userId: string, serviceId: string): Promise<b
   return !!data
 }
 
-// ─── РАЗБОРЫ ────────────────────────────────────────────
+// ─── РАЗБОРЫ ───────────────────────────────────────────────
 
 // Сохранить результат разбора
 export async function saveStyleResult(userId: string, result: any) {
@@ -166,4 +166,43 @@ export async function getLatestStyleResult(userId: string): Promise<StyleResult 
     .single()
   if (error) return null
   return data
+}
+
+// ─── ФОТО ПОЛЬЗОВАТЕЛЯ ────────────────────────────────────
+
+// Конвертирует dataURL (base64) в Blob
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, base64] = dataUrl.split(",")
+  const mimeMatch = header.match(/data:(.*?);base64/)
+  const mime = mimeMatch ? mimeMatch[1] : "image/jpeg"
+  const binary = atob(base64)
+  const array = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i)
+  return new Blob([array], { type: mime })
+}
+
+// Загружает фото (base64 dataURL) в bucket user-photos, возвращает публичный URL
+export async function uploadUserPhoto(
+  dataUrl: string,
+  prefix: string = "photo"
+): Promise<string | null> {
+  try {
+    const blob = dataUrlToBlob(dataUrl)
+    const fileName = `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`
+
+    const { error } = await supabase.storage
+      .from("user-photos")
+      .upload(fileName, blob, { contentType: "image/jpeg", upsert: false })
+
+    if (error) {
+      console.error("Photo upload error:", error)
+      return null
+    }
+
+    const { data } = supabase.storage.from("user-photos").getPublicUrl(fileName)
+    return data.publicUrl
+  } catch (e) {
+    console.error("uploadUserPhoto error:", e)
+    return null
+  }
 }

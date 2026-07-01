@@ -7,6 +7,14 @@ export async function POST(req: NextRequest) {
 
     const shopId = process.env.YUKASSA_SHOP_ID!
     const secretKey = process.env.YUKASSA_SECRET_KEY!
+
+    // ВРЕМЕННО для диагностики — потом убрать
+    console.log(
+      "DEBUG shopId:", shopId,
+      "| key ends with:", secretKey?.slice(-6),
+      "| key length:", secretKey?.length
+    )
+
     const idempotenceKey = `${featureId}-${Date.now()}`
 
     // После оплаты и при отмене — всегда возвращаем на страницу результата

@@ -14,7 +14,7 @@ import { DataStep } from "./data-step"
 import { AnalyzingStep } from "./analyzing-step"
 import { ResultStep } from "./result-step"
 import { Button } from "@/components/ui/button"
-import { supabase, saveStyleResult } from "@/lib/supabase"
+import { supabase, saveStyleResult, uploadUserPhoto } from "@/lib/supabase"
 import type { User } from "@supabase/supabase-js"
 import { X } from "lucide-react"
 import { AppHeader } from "./app-header"
@@ -202,9 +202,21 @@ export function StylistApp() {
 
   // ─── КРИТИЧНО: сохраняем форму + результат при завершении анализа ───
   async function handleAnalysisDone() {
-    // Сохраняем форму БЕЗ фото — фото слишком большое для localStorage на мобильном
-    const formWithoutPhoto = { ...form, photo: null, facePhoto: null }
-    localStorage.setItem("atelier_form", JSON.stringify(formWithoutPhoto))
+    // Загружаем фото в Supabase Storage и сохраняем ссылки вместо тяжёлого base64.
+    // Это позволяет фото пережить редирект на оплату (ЮКасса) и обратно —
+    // localStorage хранит только лёгкий URL, а не data:image base64.
+    let photoUrl: string | null = null
+    let facePhotoUrl: string | null = null
+
+    if (form.photo) {
+      photoUrl = await uploadUserPhoto(form.photo, "body")
+    }
+    if (form.facePhoto) {
+      facePhotoUrl = await uploadUserPhoto(form.facePhoto, "face")
+    }
+
+    const formToSave = { ...form, photo: photoUrl, facePhoto: facePhotoUrl }
+    localStorage.setItem("atelier_form", JSON.stringify(formToSave))
     const result = buildRecommendation(form)
     localStorage.setItem("atelier_result", JSON.stringify(result))
     if (user) {
