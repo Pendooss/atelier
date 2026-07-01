@@ -51,14 +51,17 @@ function NextStepButton({
           featureId: "outfits",
         }),
       })
+      if (!resp.ok) throw new Error(`Payment API error: ${resp.status}`)
       const data = await resp.json()
       if (data.confirmationUrl) {
         window.location.href = data.confirmationUrl
         return
       }
-    } catch {}
-    // Фоллбэк — открываем без оплаты
-    window.location.href = "/results/outfits"
+      alert("Не удалось создать платёж. Попробуйте ещё раз или напишите в поддержку.")
+    } catch (e) {
+      console.error("Payment error:", e)
+      alert("Ошибка при создании платежа. Попробуйте ещё раз.")
+    }
     setLoading(false)
   }
 

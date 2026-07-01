@@ -1,10 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowLeft, Briefcase, Heart, Sun, Sparkles, ZoomIn, X } from "lucide-react"
+import { ArrowLeft, Briefcase, Heart, Sun, Sparkles, ZoomIn, X, Wand2, Image } from "lucide-react"
 import Link from "next/link"
 import { getOutfitPhoto, getWardrobeItemPhoto } from "@/lib/unsplash"
+import { generateClothingImage } from "@/lib/pollinations"
 import type { StylistResult } from "@/lib/stylist-data"
+
+type ImageMode = "unsplash" | "stability"
 
 interface OutfitDef {
   id: "work" | "date" | "walk" | "event"
@@ -64,10 +67,11 @@ function Lightbox({ photoUrl, name, onClose }: { photoUrl: string; name: string;
 }
 
 // ─── Карточка одной вещи в образе ─────────────────────────
-function OutfitItemPhoto({ itemName, gender, color, onOpenLightbox }: {
+function OutfitItemPhoto({ itemName, gender, color, mode, onOpenLightbox }: {
   itemName: string
   gender: "male" | "female"
   color: string
+  mode: ImageMode
   onOpenLightbox: (url: string, name: string) => void
 }) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
@@ -76,11 +80,18 @@ function OutfitItemPhoto({ itemName, gender, color, onOpenLightbox }: {
   useEffect(() => {
     setLoading(true)
     setPhotoUrl(null)
-    getWardrobeItemPhoto(itemName, gender).then((p) => {
-      if (p) setPhotoUrl(p.url)
-      setLoading(false)
-    })
-  }, [itemName, gender])
+    if (mode === "stability") {
+      generateClothingImage(itemName, color, gender).then((url) => {
+        setPhotoUrl(url)
+        setLoading(false)
+      })
+    } else {
+      getWardrobeItemPhoto(itemName, gender).then((p) => {
+        if (p) setPhotoUrl(p.url)
+        setLoading(false)
+      })
+    }
+  }, [itemName, gender, color, mode])
 
   return (
     <div
@@ -111,11 +122,12 @@ function OutfitItemPhoto({ itemName, gender, color, onOpenLightbox }: {
 }
 
 // ─── Карточка целого образа (повод) ──────────────────────
-function OutfitCard({ def, items, gender, colorType, onOpenLightbox }: {
+function OutfitCard({ def, items, gender, colorType, mode, onOpenLightbox }: {
   def: OutfitDef
   items: string[]
   gender: "male" | "female"
   colorType: string
+  mode: ImageMode
   onOpenLightbox: (url: string, name: string) => void
 }) {
   const [heroUrl, setHeroUrl] = useState<string | null>(null)
@@ -164,7 +176,7 @@ function OutfitCard({ def, items, gender, colorType, onOpenLightbox }: {
       <div className="p-5">
         <div className="grid grid-cols-4 gap-2">
           {items.map((item) => (
-            <OutfitItemPhoto key={item} itemName={item} gender={gender} color={def.color} onOpenLightbox={onOpenLightbox} />
+            <OutfitItemPhoto key={`${item}-${mode}`} itemName={item} gender={gender} color={def.color} mode={mode} onOpenLightbox={onOpenLightbox} />
           ))}
         </div>
       </div>
@@ -175,6 +187,7 @@ function OutfitCard({ def, items, gender, colorType, onOpenLightbox }: {
 export default function OutfitsPage() {
   const [result, setResult] = useState<StylistResult | null>(null)
   const [lightbox, setLightbox] = useState<{ url: string; name: string } | null>(null)
+  const [imageMode, setImageMode] = useState<ImageMode>("unsplash")
 
   useEffect(() => {
     const saved = localStorage.getItem("atelier_result")
@@ -218,6 +231,22 @@ export default function OutfitsPage() {
           </p>
         </div>
 
+        {/* Переключатель фото */}
+        <div className="mb-5 flex items-center justify-center gap-2">
+          <span className="text-xs text-muted-foreground">Фотографии:</span>
+          <div className="flex overflow-hidden rounded-lg border border-border">
+            <button onClick={() => setImageMode("unsplash")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${imageMode === "unsplash" ? "bg-accent text-accent-foreground" : "bg-background text-muted-foreground hover:bg-secondary"}`}>
+              <Image className="h-3 w-3" />Unsplash
+            </button>
+            <button onClick={() => setImageMode("stability")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${imageMode === "stability" ? "bg-accent text-accent-foreground" : "bg-background text-muted-foreground hover:bg-secondary"}`}>
+              <Wand2 className="h-3 w-3" />AI-генерация
+            </button>
+          </div>
+          {imageMode === "stability" && <span className="text-xs text-muted-foreground italic">~30 сек/фото</span>}
+        </div>
+
         <div className="grid gap-6 sm:grid-cols-2">
           {OUTFIT_DEFS.map((def) => (
             <OutfitCard
@@ -226,6 +255,7 @@ export default function OutfitsPage() {
               items={getOutfitItems(def.id, gender, result)}
               gender={gender}
               colorType={result.colorType}
+              mode={imageMode}
               onOpenLightbox={(url, name) => setLightbox({ url, name })}
             />
           ))}
