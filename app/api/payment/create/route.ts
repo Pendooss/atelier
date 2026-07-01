@@ -1,5 +1,6 @@
 // app/api/payment/create/route.ts
 import { NextRequest, NextResponse } from "next/server"
+import { randomUUID } from "node:crypto"
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,7 +12,13 @@ export async function POST(req: NextRequest) {
 
     const shopId = process.env.YUKASSA_SHOP_ID!
     const secretKey = process.env.YUKASSA_SECRET_KEY!
-    const idempotenceKey = `${featureId}-${userId}-${Date.now()}`
+
+    // ВАЖНО: ключ идемпотентности у ЮKassa ограничен по длине (64 символа).
+    // Для пакетов featureId может содержать несколько услуг через запятую,
+    // и вместе с userId + датой это превышало лимит — отсюда ошибка
+    // "Idempotence key is too long" именно на пакетных покупках.
+    // UUID даёт гарантированную уникальность и всегда укладывается в лимит.
+    const idempotenceKey = randomUUID()
 
     // После оплаты и при отмене — всегда возвращаем на страницу результата
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://atelier-ai.ru"
