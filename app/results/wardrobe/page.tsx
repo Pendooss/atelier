@@ -1,13 +1,15 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowLeft, Check, X, Wand2, Image, ZoomIn } from "lucide-react"
+import { ArrowLeft, Check, X, Wand2, Image, ZoomIn, Lock } from "lucide-react"
 import Link from "next/link"
 import { getWardrobeItemPhoto } from "@/lib/unsplash"
 import { generateClothingImage } from "@/lib/pollinations"
+import { supabase, hasPurchased } from "@/lib/supabase"
 import type { StylistResult } from "@/lib/stylist-data"
 
 type ImageMode = "unsplash" | "stability"
+type AccessState = "checking" | "granted" | "denied"
 
 interface ClothingItem {
   name: string
@@ -26,7 +28,7 @@ function buildItems(result: StylistResult) {
         { name: result.recommendedItems[1] || "Прямые брюки", detail: "Классический крой", color: p[1]?.hex || "#374151", tag: "wear" as const },
         { name: "Белая рубашка", detail: "Базовая, универсальная", color: "#f8f8f8", tag: "wear" as const },
         { name: result.recommendedItems[3] || "Джемпер", detail: "Кашемир или шерсть", color: p[3]?.hex || "#d9d3c7", tag: "wear" as const },
-        { name: "Чиносы", detail: "Между джинсами и брюками", color: p[2]?.hex || "#c8a882", tag: "wear" as const },
+        { name: "Чинос", detail: "Между джинсами и брюками", color: p[2]?.hex || "#c8a882", tag: "wear" as const },
         { name: "Поло", detail: "Элегантнее футболки", color: p[4]?.hex || "#2f6b5b", tag: "wear" as const },
       ],
       avoid: [
@@ -53,7 +55,7 @@ function buildItems(result: StylistResult) {
   }
 }
 
-// ─── Лайтбокс ────────────────────────────────────────────
+// ─── Лайтбокс ─────────────────────────────────────────────────
 function Lightbox({ photoUrl, name, onClose }: {
   photoUrl: string
   name: string
@@ -136,7 +138,6 @@ function ClothingCard({ item, gender, mode, onOpenLightbox }: {
           <>
             <img src={photoUrl} alt={item.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-            {/* Иконка увеличения */}
             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/50 backdrop-blur">
                 <ZoomIn className="h-6 w-6 text-white" />
@@ -184,10 +185,22 @@ export default function WardrobePage() {
   const [tab, setTab] = useState<"wear" | "avoid">("wear")
   const [imageMode, setImageMode] = useState<ImageMode>("unsplash")
   const [lightbox, setLightbox] = useState<{ url: string; name: string } | null>(null)
+  const [access, setAccess] = useState<AccessState>("checking")
 
   useEffect(() => {
     const saved = localStorage.getItem("atelier_result")
     if (saved) setResult(JSON.parse(saved))
+
+    // ─── Реальная проверка оплаты — вместо доверия параметру ?paid=1 в URL ───
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { setAccess("denied"); return }
+      try {
+        const ok = await hasPurchased(user.id, "visual")
+        setAccess(ok ? "granted" : "denied")
+      } catch {
+        setAccess("denied")
+      }
+    })
   }, [])
 
   if (!result) return (
@@ -195,6 +208,29 @@ export default function WardrobePage() {
       <div className="text-center">
         <p className="text-muted-foreground">Данные не найдены.</p>
         <Link href="/?step=3" className="mt-4 inline-block text-accent underline">К результатам</Link>
+      </div>
+    </div>
+  )
+
+  if (access === "checking") return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+    </div>
+  )
+
+  if (access === "denied") return (
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="max-w-sm text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent">
+          <Lock className="h-6 w-6" />
+        </div>
+        <h1 className="mt-4 font-serif text-2xl">Услуга не оплачена</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          Чтобы посмотреть визуальный гардероб, сначала оформите доступ на странице результатов.
+        </p>
+        <Link href="/?step=3" className="mt-5 inline-block rounded-xl bg-accent px-6 py-3 text-sm font-medium text-accent-foreground hover:bg-accent/90 transition-colors">
+          К оплате
+        </Link>
       </div>
     </div>
   )
@@ -225,7 +261,7 @@ export default function WardrobePage() {
 
       <div className="mx-auto max-w-4xl px-4 py-8">
         <div className="mb-6 text-center">
-          <span className="text-xs font-semibold uppercase tracking-widest text-accent">Премиум · 399 ₽</span>
+          <span className="text-xs font-semibold uppercase tracking-widest text-accent">Премиум · 699 ₽</span>
           <h1 className="mt-2 font-serif text-4xl font-semibold">Визуальный гардероб</h1>
           <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
             {gender === "male" ? "Мужская" : "Женская"} одежда под ваш цветотип <strong>{result.colorType}</strong>.

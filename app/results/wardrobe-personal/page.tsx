@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowLeft, Check, Loader2, Wand2, Image } from "lucide-react"
+import { ArrowLeft, Check, Loader2, Wand2, Image, Lock } from "lucide-react"
 import Link from "next/link"
 import { getWardrobeItemPhoto } from "@/lib/unsplash"
 import { generateClothingImage } from "@/lib/pollinations"
+import { supabase, hasPurchased } from "@/lib/supabase"
 import type { StylistResult } from "@/lib/stylist-data"
 
 interface WardrobeItem {
@@ -17,8 +18,9 @@ interface WardrobeItem {
 }
 
 type ImageMode = "unsplash" | "stability"
+type AccessState = "checking" | "granted" | "denied"
 
-// ─── Карточка вещи ───────────────────────────────────────
+// ─── Карточка вещи ────────────────────────────────────────────
 function WardrobeCard({ item, gender, mode }: {
   item: WardrobeItem
   gender: "male" | "female"
@@ -128,23 +130,38 @@ function WardrobeCard({ item, gender, mode }: {
   )
 }
 
-// ─── Главная страница ────────────────────────────────────
+// ─── Главная страница ─────────────────────────────────────────
 export default function WardrobePersonalPage() {
   const [result, setResult] = useState<StylistResult | null>(null)
   const [items, setItems] = useState<WardrobeItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [imageMode, setImageMode] = useState<ImageMode>("unsplash")
+  const [access, setAccess] = useState<AccessState>("checking")
 
   useEffect(() => {
     const saved = localStorage.getItem("atelier_result")
     if (saved) setResult(JSON.parse(saved))
+
+    // ─── Реальная проверка оплаты — вместо доверия параметру ?paid=1 в URL ───
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { setAccess("denied"); return }
+      try {
+        const ok = await hasPurchased(user.id, "wardrobe")
+        setAccess(ok ? "granted" : "denied")
+      } catch {
+        setAccess("denied")
+      }
+    })
   }, [])
 
   useEffect(() => {
-    if (!result) return
+    // ВАЖНО: генерация вызывает платный API (Claude/OpenAI) — запускаем её
+    // только после того, как доступ подтверждён, иначе запрос уйдёт даже
+    // без оплаты, просто по факту наличия result в localStorage
+    if (!result || access !== "granted") return
     generateWardrobe(result)
-  }, [result])
+  }, [result, access])
 
   async function generateWardrobe(result: StylistResult) {
     setLoading(true)
@@ -164,18 +181,18 @@ export default function WardrobePersonalPage() {
       setError(true)
       const p = result.palette
       setItems(isMale ? [
-        { number: 1, name: "Белая рубашка", why: "База для 15+ образов", colorHex: "#f8f8f8", colorName: "Белый", outfits: ["+ костюм = деловой", "+ джинсы = casual", "+ чиносы = smart casual"] },
+        { number: 1, name: "Белая рубашка", why: "База для 15+ образов", colorHex: "#f8f8f8", colorName: "Белый", outfits: ["+ костюм = деловой", "+ джинсы = casual", "+ чинос = smart casual"] },
         { number: 2, name: result.recommendedItems[1] || "Прямые брюки", why: "Универсальный низ", colorHex: p[1]?.hex || "#374151", colorName: p[1]?.name || "Графит", outfits: ["+ рубашка = офис", "+ свитер = casual", "+ пиджак = деловой"] },
-        { number: 3, name: result.recommendedItems[0] || "Пиджак", why: "Трансформирует любой образ", colorHex: p[0]?.hex || "#1e3a5f", colorName: p[0]?.name || "Тёмно-синий", outfits: ["+ брюки = офис", "+ джинсы = smart casual", "+ чиносы = выход"] },
+        { number: 3, name: result.recommendedItems[0] || "Пиджак", why: "Трансформирует любой образ", colorHex: p[0]?.hex || "#1e3a5f", colorName: p[0]?.name || "Тёмно-синий", outfits: ["+ брюки = офис", "+ джинсы = smart casual", "+ чинос = выход"] },
         { number: 4, name: "Тёмные джинсы", why: "Базовый низ для повседневных образов", colorHex: "#2a3f5f", colorName: "Тёмный деним", outfits: ["+ рубашка = casual", "+ свитер = прогулка", "+ пиджак = smart"] },
         { number: 5, name: "Кашемировый джемпер", why: "Тепло и стиль в одном", colorHex: p[3]?.hex || "#d9d3c7", colorName: p[3]?.name || "Беж", outfits: ["+ джинсы = прогулка", "+ брюки = офис", "+ рубашка = layering"] },
-        { number: 6, name: "Чиносы", why: "Универсальны между джинсами и брюками", colorHex: p[2]?.hex || "#c8a882", colorName: p[2]?.name || "Кэмел", outfits: ["+ поло = casual", "+ рубашка = smart", "+ свитер = выходной"] },
-        { number: 7, name: "Поло", why: "Элегантнее футболки", colorHex: p[4]?.hex || "#2f6b5b", colorName: p[4]?.name || "Зелёный", outfits: ["+ брюки = офис", "+ джинсы = casual", "+ чиносы = прогулка"] },
+        { number: 6, name: "Чинос", why: "Универсальны между джинсами и брюками", colorHex: p[2]?.hex || "#c8a882", colorName: p[2]?.name || "Кэмел", outfits: ["+ поло = casual", "+ рубашка = smart", "+ свитер = выходной"] },
+        { number: 7, name: "Поло", why: "Элегантнее футболки", colorHex: p[4]?.hex || "#2f6b5b", colorName: p[4]?.name || "Зелёный", outfits: ["+ брюки = офис", "+ джинсы = casual", "+ чинос = прогулка"] },
         { number: 8, name: "Тёмно-синий свитер", why: "Самый универсальный цвет мужского гардероба", colorHex: "#1e3a5f", colorName: "Тёмно-синий", outfits: ["поверх рубашки", "+ джинсы", "+ брюки"] },
-        { number: 9, name: "Белые кеды", why: "Объединяют любой casual образ", colorHex: "#f5f5f5", colorName: "Белый", outfits: ["+ джинсы = прогулка", "+ чиносы = casual", "+ шорты = лето"] },
+        { number: 9, name: "Белые кеды", why: "Объединяют любой casual образ", colorHex: "#f5f5f5", colorName: "Белый", outfits: ["+ джинсы = прогулка", "+ чинос = casual", "+ шорты = лето"] },
         { number: 10, name: "Тренч или пальто", why: "Верхняя одежда-трансформер", colorHex: p[1]?.hex || "#c8a882", colorName: p[1]?.name || "Кэмел", outfits: ["поверх любого образа"] },
-        { number: 11, name: "Льняная рубашка", why: "Лёгкость для тёплого сезона", colorHex: "#e3cba8", colorName: "Тёплый беж", outfits: ["+ чиносы = город", "+ джинсы = casual", "+ навыпуск = свободно"] },
-        { number: 12, name: "Бомбер или куртка", why: "Завершает casual образ", colorHex: p[0]?.hex || "#374151", colorName: p[0]?.name || "Антрацит", outfits: ["+ джинсы = streetwear", "+ чиносы = casual", "+ футболка = прогулка"] },
+        { number: 11, name: "Льняная рубашка", why: "Лёгкость для тёплого сезона", colorHex: "#e3cba8", colorName: "Тёплый беж", outfits: ["+ чинос = город", "+ джинсы = casual", "+ навыпуск = свободно"] },
+        { number: 12, name: "Бомбер или куртка", why: "Завершает casual образ", colorHex: p[0]?.hex || "#374151", colorName: p[0]?.name || "Антрацит", outfits: ["+ джинсы = streetwear", "+ чинос = casual", "+ футболка = прогулка"] },
       ] : [
         { number: 1, name: "Белая рубашка", why: "База для 15+ образов", colorHex: "#f8f8f8", colorName: "Белый", outfits: ["+ брюки = офис", "+ джинсы = casual", "+ юбка = выход"] },
         { number: 2, name: result.recommendedItems[1] || "Прямые брюки", why: "Универсальный низ", colorHex: p[1]?.hex || "#c8a882", colorName: p[1]?.name || "Капучино", outfits: ["+ блуза = офис", "+ свитер = casual", "+ пиджак = деловой"] },
@@ -200,6 +217,29 @@ export default function WardrobePersonalPage() {
       <div className="text-center">
         <p className="text-muted-foreground">Данные не найдены.</p>
         <Link href="/?step=3" className="mt-4 inline-block text-accent underline">К результатам</Link>
+      </div>
+    </div>
+  )
+
+  if (access === "checking") return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+    </div>
+  )
+
+  if (access === "denied") return (
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="max-w-sm text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent">
+          <Lock className="h-6 w-6" />
+        </div>
+        <h1 className="mt-4 font-serif text-2xl">Услуга не оплачена</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          Чтобы посмотреть капсульный гардероб, сначала оформите доступ на странице результатов.
+        </p>
+        <Link href="/?step=3" className="mt-5 inline-block rounded-xl bg-accent px-6 py-3 text-sm font-medium text-accent-foreground hover:bg-accent/90 transition-colors">
+          К оплате
+        </Link>
       </div>
     </div>
   )

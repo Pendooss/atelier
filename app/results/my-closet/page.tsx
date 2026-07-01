@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
-import { ArrowLeft, Upload, X, Loader2, Sparkles, Send, MessageSquare } from "lucide-react"
+import { ArrowLeft, Upload, X, Loader2, Sparkles, Send, MessageSquare, Lock } from "lucide-react"
 import Link from "next/link"
+import { supabase, hasPurchased } from "@/lib/supabase"
 import type { StylistResult } from "@/lib/stylist-data"
 
 interface OutfitSuggestion {
@@ -25,7 +26,9 @@ interface Message {
   text: string
 }
 
-// ─── AI Чат ──────────────────────────────────────────────
+type AccessState = "checking" | "granted" | "denied"
+
+// ─── AI Чат ─────────────────────────────────────────────────────
 function AIChat({ result }: { result: StylistResult }) {
   const [messages, setMessages] = useState<Message[]>([{
     role: "assistant",
@@ -127,11 +130,23 @@ export default function MyClosetPage() {
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<"upload" | "result">("upload")
   const [activeTab, setActiveTab] = useState<"closet" | "chat">("closet")
+  const [access, setAccess] = useState<AccessState>("checking")
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const saved = localStorage.getItem("atelier_result")
     if (saved) setResult(JSON.parse(saved))
+
+    // ─── Реальная проверка оплаты — вместо доверия параметру ?paid=1 в URL ───
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { setAccess("denied"); return }
+      try {
+        const ok = await hasPurchased(user.id, "mycloset")
+        setAccess(ok ? "granted" : "denied")
+      } catch {
+        setAccess("denied")
+      }
+    })
   }, [])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -186,6 +201,29 @@ export default function MyClosetPage() {
       <div className="text-center">
         <p className="text-muted-foreground">Данные не найдены.</p>
         <Link href="/?step=3" className="mt-4 inline-block text-accent underline">К результатам</Link>
+      </div>
+    </div>
+  )
+
+  if (access === "checking") return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+    </div>
+  )
+
+  if (access === "denied") return (
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="max-w-sm text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent">
+          <Lock className="h-6 w-6" />
+        </div>
+        <h1 className="mt-4 font-serif text-2xl">Услуга не оплачена</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          Чтобы открыть «Мой шкаф» и AI-стилиста в чате, сначала оформите доступ на странице результатов.
+        </p>
+        <Link href="/?step=3" className="mt-5 inline-block rounded-xl bg-accent px-6 py-3 text-sm font-medium text-accent-foreground hover:bg-accent/90 transition-colors">
+          К оплате
+        </Link>
       </div>
     </div>
   )
