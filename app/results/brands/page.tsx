@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowLeft, Check, Loader2 } from "lucide-react"
+import { ArrowLeft, Check, Loader2, Lock } from "lucide-react"
 import Link from "next/link"
+import { supabase, hasPurchased } from "@/lib/supabase"
 import type { StylistResult } from "@/lib/stylist-data"
 
 interface Brand {
@@ -14,21 +15,37 @@ interface Brand {
   colorHex: string
 }
 
+type AccessState = "checking" | "granted" | "denied"
+
 export default function BrandsPage() {
   const [result, setResult] = useState<StylistResult | null>(null)
   const [brands, setBrands] = useState<Brand[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [access, setAccess] = useState<AccessState>("checking")
 
   useEffect(() => {
     const saved = localStorage.getItem("atelier_result")
     if (saved) setResult(JSON.parse(saved))
+
+    // ─── Реальная проверка оплаты — вместо доверия параметру ?paid=1 в URL ───
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { setAccess("denied"); return }
+      try {
+        const ok = await hasPurchased(user.id, "brands")
+        setAccess(ok ? "granted" : "denied")
+      } catch {
+        setAccess("denied")
+      }
+    })
   }, [])
 
   useEffect(() => {
-    if (!result) return
+    // ВАЖНО: генерация вызывает платный API — запускаем только после
+    // подтверждения оплаты, иначе запрос уйдёт даже без покупки
+    if (!result || access !== "granted") return
     generateBrands(result)
-  }, [result])
+  }, [result, access])
 
   async function generateBrands(result: StylistResult) {
     setLoading(true)
@@ -49,9 +66,9 @@ export default function BrandsPage() {
       setBrands(isMale ? [
         { name: "COS", description: "Минимализм и чистые силуэты", why: `Идеально для цветотипа ${result.colorType}. Нейтральная палитра подчёркивает природный колорит.`, priceRange: "3 000 — 15 000 ₽", models: ["Приталенный пиджак", "Прямые брюки", "Льняная рубашка", "Водолазка"], colorHex: p[0]?.hex || "#1e3a5f" },
         { name: "Massimo Dutti", description: "Качественная мужская классика", why: "Безупречный крой и премиальные ткани для делового гардероба.", priceRange: "5 000 — 30 000 ₽", models: ["Костюм двойка", "Белая рубашка", "Кожаные дерби", "Пальто"], colorHex: p[1]?.hex || "#374151" },
-        { name: "Arket", description: "Скандинавский минимализм", why: "Экологичные материалы и приглушённая палитра под ваш тип.", priceRange: "4 000 — 20 000 ₽", models: ["Кашемировый джемпер", "Чиносы", "Бомбер", "Льняные брюки"], colorHex: p[2]?.hex || "#c8a882" },
+        { name: "Arket", description: "Скандинавский минимализм", why: "Экологичные материалы и приглушённая палитра под ваш тип.", priceRange: "4 000 — 20 000 ₽", models: ["Кашемировый джемпер", "Чинос", "Бомбер", "Льняные брюки"], colorHex: p[2]?.hex || "#c8a882" },
         { name: "Zara Man", description: "Тренды по доступной цене", why: "Широкий выбор актуальных фасонов в тонах вашей палитры.", priceRange: "1 500 — 8 000 ₽", models: ["Пиджак slim fit", "Тёмные брюки", "Рубашка", "Дафлкот"], colorHex: p[3]?.hex || "#d9d3c7" },
-        { name: "Uniqlo", description: "База высокого качества", why: "Непревзойдённое качество базовых вещей.", priceRange: "1 000 — 6 000 ₽", models: ["Кашемировый свитер", "Поло", "Чиносы slim", "Пуховик"], colorHex: p[4]?.hex || "#6b7280" },
+        { name: "Uniqlo", description: "База высокого качества", why: "Непревзойдённое качество базовых вещей.", priceRange: "1 000 — 6 000 ₽", models: ["Кашемировый свитер", "Поло", "Чинос slim", "Пуховик"], colorHex: p[4]?.hex || "#6b7280" },
       ] : [
         { name: "COS", description: "Минимализм и чистые силуэты", why: `Идеально для цветотипа ${result.colorType}. Нейтральная палитра подчёркивает колорит.`, priceRange: "3 000 — 15 000 ₽", models: ["Приталенный блейзер", "Прямые брюки", "Льняная рубашка", "Платье миди"], colorHex: p[0]?.hex || "#e8c4b8" },
         { name: "Arket", description: "Натуральные ткани", why: "Скандинавский минимализм и экологичные материалы под ваш тип фигуры.", priceRange: "4 000 — 20 000 ₽", models: ["Кашемировый джемпер", "Широкие джинсы", "Пальто", "Льняное платье"], colorHex: p[1]?.hex || "#c8a882" },
@@ -69,6 +86,29 @@ export default function BrandsPage() {
       <div className="text-center">
         <p className="text-muted-foreground">Данные не найдены.</p>
         <Link href="/?step=3" className="mt-4 inline-block text-accent underline">На главную</Link>
+      </div>
+    </div>
+  )
+
+  if (access === "checking") return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+    </div>
+  )
+
+  if (access === "denied") return (
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="max-w-sm text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent">
+          <Lock className="h-6 w-6" />
+        </div>
+        <h1 className="mt-4 font-serif text-2xl">Услуга не оплачена</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          Чтобы посмотреть подбор брендов, сначала оформите доступ на странице результатов.
+        </p>
+        <Link href="/?step=3" className="mt-5 inline-block rounded-xl bg-accent px-6 py-3 text-sm font-medium text-accent-foreground hover:bg-accent/90 transition-colors">
+          К оплате
+        </Link>
       </div>
     </div>
   )
