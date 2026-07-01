@@ -29,6 +29,8 @@ export type Purchase = {
   service_name: string
   price: string
   purchased_at: string
+  expires_at?: string | null
+  payment_id?: string | null
 }
 
 export type StyleResult = {
@@ -88,12 +90,14 @@ export async function getProfile(userId: string): Promise<Profile | null> {
 
 // ─── ПОКУПКИ ───────────────────────────────────────────────
 
-// Добавить покупку
+// Добавить покупку (expiresAt = null для разовых услуг, ISO-дата для подписок)
 export async function addPurchase(
   userId: string,
   serviceId: string,
   serviceName: string,
-  price: string
+  price: string,
+  expiresAt: string | null = null,
+  paymentId: string | null = null,
 ) {
   const { data, error } = await supabase
     .from('purchases')
@@ -101,7 +105,9 @@ export async function addPurchase(
       user_id: userId,
       service_id: serviceId,
       service_name: serviceName,
-      price
+      price,
+      expires_at: expiresAt,
+      payment_id: paymentId,
     })
     .select()
     .single()
@@ -120,15 +126,20 @@ export async function getPurchases(userId: string): Promise<Purchase[]> {
   return data
 }
 
-// Проверить куплена ли услуга
+// Проверить куплена ли услуга (и не истёк ли срок подписки)
 export async function hasPurchased(userId: string, serviceId: string): Promise<boolean> {
   const { data } = await supabase
     .from('purchases')
-    .select('id')
+    .select('expires_at')
     .eq('user_id', userId)
     .eq('service_id', serviceId)
-    .single()
-  return !!data
+    .order('purchased_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (!data) return false
+  if (!data.expires_at) return true // разовая услуга — доступ навсегда
+  return new Date(data.expires_at).getTime() > Date.now()
 }
 
 // ─── РАЗБОРЫ ───────────────────────────────────────────────

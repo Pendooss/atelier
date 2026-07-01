@@ -3,22 +3,18 @@ import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest) {
   try {
-    const { amount, description, featureId } = await req.json()
+    const { amount, description, featureId, userId } = await req.json()
+
+    if (!userId) {
+      return NextResponse.json({ error: "userId is required" }, { status: 400 })
+    }
 
     const shopId = process.env.YUKASSA_SHOP_ID!
     const secretKey = process.env.YUKASSA_SECRET_KEY!
-
-    // ВРЕМЕННО для диагностики — потом убрать
-    console.log(
-      "DEBUG shopId:", shopId,
-      "| key ends with:", secretKey?.slice(-6),
-      "| key length:", secretKey?.length
-    )
-
-    const idempotenceKey = `${featureId}-${Date.now()}`
+    const idempotenceKey = `${featureId}-${userId}-${Date.now()}`
 
     // После оплаты и при отмене — всегда возвращаем на страницу результата
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.atelier-ai.ru"
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://atelier-ai.ru"
     const returnUrl = `${baseUrl}/?step=3&paid=${featureId}`
 
     const response = await fetch("https://api.yookassa.ru/v3/payments", {
@@ -36,7 +32,9 @@ export async function POST(req: NextRequest) {
         },
         capture: true,
         description,
-        metadata: { featureId },
+        // userId и featureId нужны в вебхуке (/api/payment/webhook), чтобы понять,
+        // кому и какую услугу открыть после подтверждения оплаты
+        metadata: { featureId, userId },
       }),
     })
 

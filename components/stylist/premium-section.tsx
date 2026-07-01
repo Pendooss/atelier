@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Bot, Check, Lock, Wand2, Shield, Layers } from "lucide-react"
-import { addPurchase } from "@/lib/supabase"
+import { getPurchases } from "@/lib/supabase"
 import type { User } from "@supabase/supabase-js"
 import type { StylistResult } from "@/lib/stylist-data"
 
-// ─── 4 услуги вместо 7 ───────────────────────────────────
+// ─── 4 услуги ──────────────────────────────────────────────
 const features = [
   {
     id: "outfits",
@@ -22,6 +22,7 @@ const features = [
     bullets: ["4 лука с фото", "Работа, свидание, прогулка, выход", "Под ваш тип фигуры"],
     badge: "Популярно",
     href: "/results/outfits",
+    kind: "onetime" as const,
   },
   {
     id: "visual",
@@ -34,6 +35,7 @@ const features = [
     bullets: ["Визуальный гардероб", "Магазины с прямыми ссылками", "Бренды под ваш тип"],
     badge: "Хит",
     href: "/results/wardrobe",
+    kind: "onetime" as const,
   },
   {
     id: "mycloset",
@@ -46,6 +48,7 @@ const features = [
     bullets: ["Образы из ваших вещей", "AI-стилист отвечает за секунды", "Знает ваш профиль"],
     badge: "Новинка",
     href: "/results/my-closet",
+    kind: "subscription" as const,
   },
   {
     id: "wardrobe",
@@ -58,6 +61,39 @@ const features = [
     badge: null,
     amount: "299.00",
     href: "/results/wardrobe-personal",
+    kind: "subscription" as const,
+  },
+]
+
+// ─── Пакеты: разовые услуги навсегда / подписки со скидкой ───
+const oneTimeFeatures = features.filter((f) => f.kind === "onetime")
+const subscriptionFeatures = features.filter((f) => f.kind === "subscription")
+
+const oneTimeOriginalPrice = oneTimeFeatures.reduce((sum, f) => sum + parseFloat(f.amount), 0)
+const subscriptionOriginalPrice = subscriptionFeatures.reduce((sum, f) => sum + parseFloat(f.amount), 0)
+
+const bundles = [
+  {
+    id: "bundle-onetime",
+    title: "Все разовые услуги",
+    description: "Готовые образы + Гардероб и шопинг — покупаете один раз, доступ остаётся навсегда.",
+    amount: "990.00",
+    price: "990 ₽",
+    originalPrice: `${oneTimeOriginalPrice} ₽`,
+    economyPercent: Math.round((1 - 990 / oneTimeOriginalPrice) * 100),
+    featureIds: oneTimeFeatures.map((f) => f.id),
+    period: null as null | "month",
+  },
+  {
+    id: "bundle-subscription",
+    title: "Все подписки",
+    description: "Мой шкаф + AI-чат и Капсульный гардероб — одной подпиской вместо двух, дешевле каждый месяц.",
+    amount: "400.00",
+    price: "400 ₽/мес",
+    originalPrice: `${subscriptionOriginalPrice} ₽/мес`,
+    economyPercent: Math.round((1 - 400 / subscriptionOriginalPrice) * 100),
+    featureIds: subscriptionFeatures.map((f) => f.id),
+    period: "month" as null | "month",
   },
 ]
 
@@ -70,7 +106,7 @@ const SOCIAL_PROOFS = [
   "Наташа открыла AI-стилист в чате",
 ]
 
-// ─── Поп-ап: один раз за сессию, на мобильном снизу ──────
+// ─── Поп-ап: один раз за сессию, на мобильном снизу ──────────
 function SocialProofPopup() {
   const [visible, setVisible] = useState(false)
   const [text, setText] = useState("")
@@ -139,6 +175,24 @@ export function PremiumSection({
   const router = useRouter()
   const [unlocked, setUnlocked] = useState<string[]>([])
   const [loading, setLoading] = useState<string | null>(null)
+  const [loadingBundle, setLoadingBundle] = useState<string | null>(null)
+
+  // Загружаем реальные покупки пользователя (с учётом срока действия подписок)
+  useEffect(() => {
+    if (!user) {
+      setUnlocked([])
+      return
+    }
+    getPurchases(user.id)
+      .then((purchases) => {
+        const now = Date.now()
+        const active = purchases
+          .filter((p) => !p.expires_at || new Date(p.expires_at).getTime() > now)
+          .map((p) => p.service_id)
+        setUnlocked(active)
+      })
+      .catch(() => {})
+  }, [user])
 
   async function handleUnlock(feature: typeof features[0]) {
     if (!user) { onAuthRequired(); return }
@@ -161,6 +215,7 @@ export function PremiumSection({
           amount: (feature as any).amount || "299.00",
           description: `ATELIER: ${feature.title}`,
           featureId: feature.id,
+          userId: user.id,
           returnUrl,
         }),
       })
@@ -181,6 +236,42 @@ export function PremiumSection({
       alert("Ошибка при создании платежа. Попробуйте ещё раз.")
     } finally {
       setLoading(null)
+    }
+  }
+
+  async function handleUnlockBundle(bundle: typeof bundles[0]) {
+    if (!user) { onAuthRequired(); return }
+
+    setLoadingBundle(bundle.id)
+    try {
+      const returnUrl = `${window.location.origin}/?step=3&paid=${bundle.id}`
+      const resp = await fetch("/api/payment/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: bundle.amount,
+          description: `ATELIER: ${bundle.title}`,
+          // Список услуг пакета передаём через запятую — вебхук разобьёт
+          // эту строку и запишет покупку для каждой услуги отдельно
+          featureId: bundle.featureIds.join(","),
+          userId: user.id,
+          returnUrl,
+        }),
+      })
+      const data = await resp.json()
+      if (data.confirmationUrl) {
+        localStorage.setItem("atelier_result", JSON.stringify(result))
+        window.location.href = data.confirmationUrl
+        return
+      }
+
+      console.error("No confirmationUrl in response:", data)
+      alert("Не удалось создать платёж. Попробуйте ещё раз или напишите в поддержку.")
+    } catch (e) {
+      console.error("Bundle payment error:", e)
+      alert("Ошибка при создании платежа. Попробуйте ещё раз.")
+    } finally {
+      setLoadingBundle(null)
     }
   }
 
@@ -262,28 +353,42 @@ export function PremiumSection({
           })}
         </div>
 
-        {/* Полный доступ */}
-        <div className="mt-5 flex flex-col items-center justify-between gap-5 rounded-2xl border border-dashed border-accent/40 bg-accent/10 p-6 sm:flex-row">
-          <div>
-            <div className="mb-1 rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-accent inline-block">
-              Выгоднее всего — экономия 60%
-            </div>
-            <h3 className="font-serif text-xl">Полный доступ ко всем услугам</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Все возможности ATELIER в одной подписке.</p>
-          </div>
-          <div className="flex flex-col items-center gap-2 sm:items-end shrink-0">
-            <div className="flex items-baseline gap-2">
-              <span className="text-muted-foreground line-through text-sm">3 993 ₽</span>
-              <span className="font-serif text-3xl font-semibold text-foreground">1 490 ₽/мес</span>
-            </div>
-            <Button onClick={() => !user && onAuthRequired()}>
-              {user ? "Оформить всё" : "Войти и оформить"}
-            </Button>
-            <div className="flex items-center gap-1">
-              <Shield className="h-3 w-3 text-muted-foreground" />
-              <span className="text-[11px] text-muted-foreground">Возврат 24 часа</span>
-            </div>
-          </div>
+        {/* Пакетные предложения: разовые услуги навсегда / все подписки со скидкой */}
+        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          {bundles.map((bundle) => {
+            const isLoading = loadingBundle === bundle.id
+            return (
+              <div
+                key={bundle.id}
+                className="flex flex-col justify-between rounded-2xl border border-dashed border-accent/40 bg-accent/10 p-6"
+              >
+                <div>
+                  <div className="mb-2 inline-block rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-accent">
+                    Выгоднее — экономия {bundle.economyPercent}%
+                  </div>
+                  <h3 className="font-serif text-xl">{bundle.title}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{bundle.description}</p>
+                </div>
+                <div className="mt-5 flex flex-col items-start gap-2">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-muted-foreground line-through text-sm">{bundle.originalPrice}</span>
+                    <span className="font-serif text-2xl font-semibold text-foreground">{bundle.price}</span>
+                  </div>
+                  <Button
+                    onClick={() => (user ? handleUnlockBundle(bundle) : onAuthRequired())}
+                    disabled={isLoading}
+                    className="w-full sm:w-auto"
+                  >
+                    {isLoading ? "Перенаправляем..." : user ? "Оформить" : "Войти и оформить"}
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Shield className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-[11px] text-muted-foreground">Возврат 24 часа</span>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       </section>
     </>
