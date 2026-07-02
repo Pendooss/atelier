@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowLeft, Check, X, Wand2, Image, ZoomIn, Lock } from "lucide-react"
+import { ArrowLeft, Check, X, Wand2, Image, ZoomIn, Lock, ShoppingBag } from "lucide-react"
 import Link from "next/link"
 import { getWardrobeItemPhoto } from "@/lib/unsplash"
 import { generateClothingImage } from "@/lib/pollinations"
@@ -16,6 +16,18 @@ interface ClothingItem {
   detail: string
   color: string
   tag: "wear" | "avoid"
+}
+
+// ─── Ссылки на поиск товара в маркетплейсах, которые реально работают в РФ ───
+// Zara/H&M/Uniqlo не работают в России с 2022 года и по сей день не вернулись,
+// поэтому ссылки ведут на маркетплейсы с доставкой по России и живым ассортиментом.
+function shopSearchLinks(query: string) {
+  const q = encodeURIComponent(query)
+  return {
+    wildberries: `https://www.wildberries.ru/catalog/0/search.aspx?search=${q}`,
+    ozon: `https://www.ozon.ru/search/?text=${q}`,
+    lamoda: `https://www.lamoda.ru/catalogsearch/result/?q=${q}`,
+  }
 }
 
 function buildItems(result: StylistResult) {
@@ -105,6 +117,7 @@ function ClothingCard({ item, gender, mode, onOpenLightbox }: {
   const [photoAuthorUrl, setPhotoAuthorUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const isAvoid = item.tag === "avoid"
+  const links = shopSearchLinks(item.name)
 
   useEffect(() => {
     setLoading(true)
@@ -175,6 +188,28 @@ function ClothingCard({ item, gender, mode, onOpenLightbox }: {
           <div className="h-4 w-4 rounded-full border border-border shadow-sm" style={{ backgroundColor: item.color }} />
           <span className="text-xs text-muted-foreground">{isAvoid ? "Нежелательный тон" : "Рекомендуемый тон"}</span>
         </div>
+
+        {!isAvoid && (
+          <div className="mt-3 border-t border-border/60 pt-3">
+            <div className="mb-1.5 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              <ShoppingBag className="h-3 w-3" />Найти похожее
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <a href={links.wildberries} target="_blank" rel="noopener noreferrer"
+                className="rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:border-accent hover:text-accent">
+                Wildberries
+              </a>
+              <a href={links.ozon} target="_blank" rel="noopener noreferrer"
+                className="rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:border-accent hover:text-accent">
+                Ozon
+              </a>
+              <a href={links.lamoda} target="_blank" rel="noopener noreferrer"
+                className="rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:border-accent hover:text-accent">
+                Lamoda
+              </a>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -265,7 +300,7 @@ export default function WardrobePage() {
           <h1 className="mt-2 font-serif text-4xl font-semibold">Визуальный гардероб</h1>
           <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
             {gender === "male" ? "Мужская" : "Женская"} одежда под ваш цветотип <strong>{result.colorType}</strong>.
-            <span className="block mt-1 text-xs text-muted-foreground/70">Нажмите на фото для просмотра</span>
+            <span className="block mt-1 text-xs text-muted-foreground/70">Нажмите на фото для просмотра, кнопки под карточкой — чтобы найти похожую вещь на маркетплейсе</span>
           </p>
         </div>
 
@@ -307,8 +342,12 @@ export default function WardrobePage() {
           ))}
         </div>
 
+        <p className="mt-6 text-center text-[11px] text-muted-foreground">
+          Цены и наличие товаров уточняйте на сайте маркетплейса — мы показываем актуальный поиск, а не фиксированные цены.
+        </p>
+
         {imageMode === "unsplash" && (
-          <p className="mt-6 text-center text-[11px] text-muted-foreground">
+          <p className="mt-2 text-center text-[11px] text-muted-foreground">
             Фотографии предоставлены{" "}
             <a href="https://unsplash.com?utm_source=atelier&utm_medium=referral" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Unsplash</a>
           </p>
