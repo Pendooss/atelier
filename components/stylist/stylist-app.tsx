@@ -256,7 +256,13 @@ export function StylistApp() {
           ref={contentRef}
           style={{ opacity: 1, transform: "translateY(0)", transition: "opacity 0.35s ease, transform 0.35s ease" }}
         >
-          {step === 0 && <WelcomeStep onStart={() => goTo(1)} />}
+          {step === 0 && (
+            <WelcomeStep
+              onStart={() => goTo(1)}
+              user={user}
+              onAuthRequired={() => setShowAuth(true)}
+            />
+          )}
           {step === 1 && (
             <DataStep form={form} setForm={setForm} onBack={() => goTo(0)} onAnalyze={() => goTo(2)} />
           )}

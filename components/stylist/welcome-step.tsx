@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Camera, Palette, Shirt, Sparkles, Check, Star, ArrowRight, Mail, Loader2, MessageSquare } from "lucide-react"
+import { Camera, Palette, Shirt, Sparkles, Check, Star, ArrowRight, Mail, Loader2, MessageSquare, Lock } from "lucide-react"
+import type { User } from "@supabase/supabase-js"
 
 const points = [
   {
@@ -37,6 +38,7 @@ const EXAMPLE_RESULT = {
   wearItems: ["Пыльно-розовый блейзер", "Прямые брюки бежевого тона", "Платье-рубашка лавандового цвета"],
   glasses: "Кошачий глаз, тонкие округлые оправы",
   shoes: "Бежевые мюли, пудровые балетки",
+  hairTip: "Мягкие волны и укладки смягчат образ",
 }
 
 const REVIEWS = [
@@ -78,7 +80,7 @@ const PRICE_COMPARE = [
   { label: "ATELIER — базовый разбор", price: "Бесплатно", accent: true },
 ]
 
-// ─── Лид-магнит блок (компактный) ───────────────────────
+// ─── Лид-магнит блок (компактный) ─────────────────────────────
 function LeadMagnet() {
   const [email, setEmail] = useState("")
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
@@ -140,8 +142,8 @@ function LeadMagnet() {
 }
 
 
-// ─── Форма отзыва ────────────────────────────────────────
-function ReviewForm() {
+// ─── Форма отзыва — только для зарегистрированных пользователей ───
+function ReviewForm({ user, onAuthRequired }: { user: User | null; onAuthRequired: () => void }) {
   const [name, setName] = useState("")
   const [city, setCity] = useState("")
   const [text, setText] = useState("")
@@ -149,7 +151,7 @@ function ReviewForm() {
   const [status, setStatus] = useState<"idle" | "loading" | "success">("idle")
 
   async function handleSubmit() {
-    if (!name || !text) return
+    if (!user || !name || !text) return
     setStatus("loading")
     try {
       await fetch("/api/welcome-email", {
@@ -159,11 +161,41 @@ function ReviewForm() {
           email: "support@atelier-ai.ru",
           name: "Новый отзыв",
           type: "review",
-          reviewData: { name, city, text, rating },
+          reviewData: {
+            name,
+            city,
+            text,
+            rating,
+            // Email аккаунта, из-под которого реально отправлен отзыв —
+            // подтверждает, что это не анонимный/поддельный отзыв
+            userEmail: user.email,
+            userId: user.id,
+          },
         }),
       })
     } catch {}
     setStatus("success")
+  }
+
+  // ─── Не залогинен — форма недоступна, предлагаем войти ───
+  if (!user) {
+    return (
+      <div className="rounded-2xl border border-border/80 bg-card p-8 text-center shadow-sm">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-accent/10">
+          <Lock className="h-6 w-6 text-accent" />
+        </div>
+        <h3 className="font-serif text-lg font-semibold text-foreground">Войдите, чтобы оставить отзыв</h3>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Отзывы могут оставлять только зарегистрированные пользователи — это защищает от накрутки и спама.
+        </p>
+        <button
+          onClick={onAuthRequired}
+          className="mt-5 rounded-xl bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground hover:bg-accent/90 transition-colors"
+        >
+          Войти или зарегистрироваться
+        </button>
+      </div>
+    )
   }
 
   if (status === "success") {
@@ -251,18 +283,22 @@ function ReviewForm() {
           ) : "Отправить отзыв"}
         </button>
         <p className="text-center text-xs text-muted-foreground">
-          Отзыв появится на сайте после проверки
+          Отзыв появится на сайте после проверки · Отправлено от {user.email}
         </p>
       </div>
     </div>
   )
 }
 
-export function WelcomeStep({ onStart }: { onStart: () => void }) {
+export function WelcomeStep({ onStart, user, onAuthRequired }: {
+  onStart: () => void
+  user: User | null
+  onAuthRequired: () => void
+}) {
   return (
     <div className="space-y-20">
 
-      {/* ─── Герой ─────────────────────────────────────────── */}
+      {/* ─── Герой ─── */}
       <div className="grid items-center gap-10 lg:grid-cols-2">
         <div className="order-2 lg:order-1">
           <span className="inline-flex items-center gap-2 rounded-full border border-accent/25 bg-card px-3 py-1 shadow-sm text-xs font-medium uppercase tracking-widest text-muted-foreground">
@@ -311,7 +347,7 @@ export function WelcomeStep({ onStart }: { onStart: () => void }) {
         </div>
       </div>
 
-      {/* ─── Пример результата ──────────────────────────────── */}
+      {/* ─── Пример результата ─── */}
       <div>
         <div className="mb-8 text-center">
           <span className="text-xs font-semibold uppercase tracking-widest text-accent">Пример разбора</span>
@@ -374,7 +410,7 @@ export function WelcomeStep({ onStart }: { onStart: () => void }) {
             </div>
             <div>
               <div className="mb-3 flex items-center gap-2">
-                <span className="text-base">👟</span>
+                <span className="text-base">👞</span>
                 <span className="text-sm font-semibold text-foreground">Обувь</span>
                 <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent">Бесплатно</span>
               </div>
@@ -401,10 +437,10 @@ export function WelcomeStep({ onStart }: { onStart: () => void }) {
         </div>
       </div>
 
-      {/* ─── Лид-магнит ─────────────────────────────────────── */}
+      {/* ─── Лид-магнит ─── */}
       <LeadMagnet />
 
-      {/* ─── Сравнение цен ──────────────────────────────────── */}
+      {/* ─── Сравнение цен ─── */}
       <div className="rounded-2xl border border-accent/20 bg-accent/5 p-8">
         <div className="mb-6 text-center">
           <h2 className="font-serif text-3xl font-semibold">Стилист vs ATELIER</h2>
@@ -427,7 +463,7 @@ export function WelcomeStep({ onStart }: { onStart: () => void }) {
         </div>
       </div>
 
-      {/* ─── Отзывы ─────────────────────────────────────────── */}
+      {/* ─── Отзывы ─── */}
       <div>
         <div className="mb-8 text-center">
           <span className="text-xs font-semibold uppercase tracking-widest text-accent">Отзывы</span>
@@ -464,7 +500,7 @@ export function WelcomeStep({ onStart }: { onStart: () => void }) {
         </div>
       </div>
 
-      {/* ─── Оставить отзыв ─────────────────────────────────── */}
+      {/* ─── Оставить отзыв ─── */}
       <div>
         <div className="mb-6 text-center">
           <span className="text-xs font-semibold uppercase tracking-widest text-accent">Ваше мнение важно</span>
@@ -473,10 +509,10 @@ export function WelcomeStep({ onStart }: { onStart: () => void }) {
             Каждый отзыв помогает другим решиться попробовать. Это занимает 1 минуту.
           </p>
         </div>
-        <ReviewForm />
+        <ReviewForm user={user} onAuthRequired={onAuthRequired} />
       </div>
 
-      {/* ─── Финальный CTA ──────────────────────────────────── */}
+      {/* ─── Финальный CTA ─── */}
       <div className="rounded-2xl bg-foreground px-5 py-8 text-center sm:px-8 sm:py-10">
         <h2 className="font-serif text-3xl font-semibold text-background">
           Готовы узнать свой стиль?
