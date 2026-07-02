@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
 
     // Пакеты передают несколько услуг через запятую (например "outfits,visual")
     const featureIds: string[] = String(featureIdRaw).split(",")
+    const isBundle = featureIds.length > 1
 
     for (const featureId of featureIds) {
       // Защита от повторной записи, если ЮKassa продублирует уведомление
@@ -94,11 +95,19 @@ export async function POST(req: NextRequest) {
         ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
         : null
 
+      // ВАЖНО: если это пакетная покупка — не показываем полную розничную
+      // цену услуги (FEATURE_PRICES), иначе в истории покупок пользователя
+      // будет выглядеть так, будто он заплатил дважды по полной цене.
+      // Вместо этого честно отмечаем, что услуга была частью пакета.
+      const price = isBundle
+        ? "В составе пакета"
+        : (FEATURE_PRICES[featureId] || payment.amount?.value || "0")
+
       const { error } = await supabaseAdmin.from("purchases").insert({
         user_id: userId,
         service_id: featureId,
         service_name: FEATURE_NAMES[featureId] || featureId,
-        price: FEATURE_PRICES[featureId] || payment.amount?.value || "0",
+        price,
         payment_id: paymentId,
         expires_at: expiresAt,
       })
