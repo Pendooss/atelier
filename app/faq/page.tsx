@@ -90,6 +90,8 @@ const FAQ_SECTIONS = [
   },
 ]
 
+const SUPPORT_EMAIL = "arseniyy.petrov.08@mail.ru"
+
 export default function FAQPage() {
   return (
     <main className="min-h-screen bg-background">
@@ -146,7 +148,7 @@ export default function FAQPage() {
           <p className="mt-2 text-sm text-muted-foreground">
             Напишите нам — обычно отвечаем в течение часа в рабочее время.
           </p>
-          <a href="mailto:support@atelier-ai.ru"
+          <a href={`mailto:${SUPPORT_EMAIL}`}
             className="mt-5 inline-flex items-center gap-2 rounded-full bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/90">
             Написать в поддержку
           </a>

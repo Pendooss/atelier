@@ -9,6 +9,8 @@ import { getPurchases } from "@/lib/supabase"
 import type { User } from "@supabase/supabase-js"
 import type { StylistResult } from "@/lib/stylist-data"
 
+const SUPPORT_EMAIL = "arseniyy.petrov.08@mail.ru"
+
 // ─── 4 услуги ──────────────────────────────────────────────
 const features = [
   {
@@ -344,7 +346,12 @@ export function PremiumSection({
                   {!isUnlocked && (
                     <div className="flex items-center justify-end gap-1">
                       <Shield className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-[11px] text-muted-foreground">Возврат 24 часа</span>
+                      <a
+                        href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Запрос возврата — " + f.title)}`}
+                        className="text-[11px] text-muted-foreground underline-offset-2 hover:text-accent hover:underline"
+                      >
+                        Возврат 24 часа
+                      </a>
                     </div>
                   )}
                 </div>
@@ -383,7 +390,12 @@ export function PremiumSection({
                   </Button>
                   <div className="flex items-center gap-1">
                     <Shield className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-[11px] text-muted-foreground">Возврат 24 часа</span>
+                    <a
+                      href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Запрос возврата — " + bundle.title)}`}
+                      className="text-[11px] text-muted-foreground underline-offset-2 hover:text-accent hover:underline"
+                    >
+                      Возврат 24 часа
+                    </a>
                   </div>
                 </div>
               </div>
