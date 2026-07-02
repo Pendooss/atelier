@@ -110,33 +110,37 @@ function LeadMagnet() {
   }
 
   return (
-    <div className="rounded-2xl border border-accent/30 bg-card p-6 shadow-sm">
-      <div className="flex items-center gap-3 mb-4">
+    <div className="relative overflow-hidden rounded-2xl border border-accent/30 bg-card p-6 shadow-sm">
+      {/* Временная заглушка — рассылка сейчас не работает для части почтовых сервисов,
+          честнее показать это прямо, чем оставлять тихо неработающую форму */}
+      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-2xl bg-card/90 backdrop-blur-sm">
+        <span className="text-2xl">🚧</span>
+        <span className="font-serif text-base font-semibold text-foreground">Временно недоступно</span>
+        <span className="text-xs text-muted-foreground">Функция в разработке — скоро заработает</span>
+      </div>
+
+      <div className="flex items-center gap-3 mb-4 opacity-40">
         <Mail className="h-5 w-5 text-accent shrink-0" />
         <div>
           <h3 className="font-serif text-lg font-semibold text-foreground">5 советов по стилю — бесплатно</h3>
           <p className="text-xs text-muted-foreground">Не готовы к разбору? Пришлём советы на email</p>
         </div>
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-2 opacity-40">
         <input
           type="email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+          disabled
           placeholder="ваш@email.ru"
-          className="flex-1 rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:border-accent"
+          className="flex-1 rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none"
         />
         <button
-          onClick={handleSubmit}
-          disabled={status === "loading" || !email.includes("@")}
-          className="rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accent-foreground hover:bg-accent/90 disabled:opacity-50 whitespace-nowrap"
+          disabled
+          className="rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accent-foreground whitespace-nowrap"
         >
-          {status === "loading" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Получить →"}
+          Получить →
         </button>
       </div>
-      {status === "error" && <p className="mt-2 text-xs text-destructive">Ошибка. Попробуйте ещё раз.</p>}
-      <p className="mt-2 text-xs text-muted-foreground">🔒 Не спамим · Отписаться в один клик</p>
     </div>
   )
 }
