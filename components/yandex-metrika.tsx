@@ -2,16 +2,11 @@
 // Добавь в app/layout.tsx:
 // import { YandexMetrika } from "@/components/yandex-metrika"
 // И вставь <YandexMetrika /> внутри <body>
-
 "use client"
-
 import Script from "next/script"
-
-const METRIKA_ID = "110178556" // ← замени на свой ID из Яндекс.Метрики
-
+const METRIKA_ID = "110341779"
 export function YandexMetrika() {
   if (process.env.NODE_ENV !== "production") return null
-
   return (
     <>
       <Script id="yandex-metrika" strategy="afterInteractive">
@@ -21,8 +16,8 @@ export function YandexMetrika() {
           for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
           k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
           (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
-
           ym(${METRIKA_ID}, "init", {
+            ssr: true,
             clickmap: true,
             trackLinks: true,
             accurateTrackBounce: true,
