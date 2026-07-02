@@ -364,6 +364,10 @@ export function PremiumSection({
         <div className="mt-5 grid gap-5 sm:grid-cols-2">
           {bundles.map((bundle) => {
             const isLoading = loadingBundle === bundle.id
+            // Пакет считается уже купленным, если ВСЕ входящие в него услуги
+            // уже открыты (куплены отдельно или тем же пакетом ранее) —
+            // без этой проверки можно было случайно оплатить пакет повторно
+            const isBundleUnlocked = bundle.featureIds.every((id) => unlocked.includes(id))
             return (
               <div
                 key={bundle.id}
@@ -381,22 +385,30 @@ export function PremiumSection({
                     <span className="text-muted-foreground line-through text-sm">{bundle.originalPrice}</span>
                     <span className="font-serif text-2xl font-semibold text-foreground">{bundle.price}</span>
                   </div>
-                  <Button
-                    onClick={() => (user ? handleUnlockBundle(bundle) : onAuthRequired())}
-                    disabled={isLoading}
-                    className="w-full sm:w-auto"
-                  >
-                    {isLoading ? "Перенаправляем..." : user ? "Оформить" : "Войти и оформить"}
-                  </Button>
-                  <div className="flex items-center gap-1">
-                    <Shield className="h-3 w-3 text-muted-foreground" />
-                    <a
-                      href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Запрос возврата — " + bundle.title)}`}
-                      className="text-[11px] text-muted-foreground underline-offset-2 hover:text-accent hover:underline"
+                  {isBundleUnlocked ? (
+                    <div className="flex w-full items-center justify-center gap-2 rounded-xl border border-accent/40 bg-accent/10 py-2.5 text-sm font-medium text-accent">
+                      <Check className="h-4 w-4" />Уже куплено
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={() => (user ? handleUnlockBundle(bundle) : onAuthRequired())}
+                      disabled={isLoading}
+                      className="w-full sm:w-auto"
                     >
-                      Возврат 24 часа
-                    </a>
-                  </div>
+                      {isLoading ? "Перенаправляем..." : user ? "Оформить" : "Войти и оформить"}
+                    </Button>
+                  )}
+                  {!isBundleUnlocked && (
+                    <div className="flex items-center gap-1">
+                      <Shield className="h-3 w-3 text-muted-foreground" />
+                      <a
+                        href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Запрос возврата — " + bundle.title)}`}
+                        className="text-[11px] text-muted-foreground underline-offset-2 hover:text-accent hover:underline"
+                      >
+                        Возврат 24 часа
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             )
