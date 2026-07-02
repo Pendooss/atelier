@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify({
           from: FROM_ADDRESS,
-          to: ["arseniyy.petrov.08@mail.ru"],
+          to: ["anncrotti@gmail.com"],
           subject: `⭐ Новый отзыв от ${reviewData.name}`,
           html: reviewHtml,
         }),
