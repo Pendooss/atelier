@@ -3,6 +3,12 @@ import { NextRequest, NextResponse } from "next/server"
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY!
 
+// ВАЖНО: домен atelier-ai.ru уже подтверждён в Resend — используем его.
+// Пока отправка шла с onboarding@resend.dev (тестовый адрес), письма
+// молча не доходили никому, кроме владельца самого аккаунта Resend —
+// это ограничение самого Resend для неподтверждённых доменов.
+const FROM_ADDRESS = "ATELIER <noreply@atelier-ai.ru>"
+
 export async function POST(req: NextRequest) {
   try {
     const { email, name, type, reviewData } = await req.json()
@@ -31,19 +37,27 @@ export async function POST(req: NextRequest) {
           </blockquote>
         </div>`
 
-      await fetch("https://api.resend.com/emails", {
+      const reviewResp = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: "ATELIER <onboarding@resend.dev>",
+          from: FROM_ADDRESS,
           to: ["arseniyy.petrov.08@mail.ru"],
           subject: `⭐ Новый отзыв от ${reviewData.name}`,
           html: reviewHtml,
         }),
       })
+
+      // ВАЖНО: раньше ошибка отправки здесь не проверялась вообще —
+      // письмо могло не уйти, а сайт всё равно показывал "Спасибо за отзыв!"
+      if (!reviewResp.ok) {
+        const err = await reviewResp.text()
+        console.error("Resend review error:", err)
+        return NextResponse.json({ error: "Email send failed" }, { status: 500 })
+      }
 
       return NextResponse.json({ success: true })
     }
@@ -153,7 +167,7 @@ export async function POST(req: NextRequest) {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "ATELIER <onboarding@resend.dev>",
+        from: FROM_ADDRESS,
         to: [email],
         subject,
         html,
