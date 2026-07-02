@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowLeft, ShoppingBag, Sparkles, User, LogOut, Clock } from "lucide-react"
+import { ArrowLeft, ShoppingBag, Sparkles, User, LogOut, Clock, AlertCircle, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
@@ -28,6 +28,7 @@ const SERVICE_ICONS: Record<string, string> = {
   outfits: "✨",
   wardrobe: "👗",
   chat: "💬",
+  mycloset: "🤖",
 }
 
 const SERVICE_HREFS: Record<string, string> = {
@@ -37,6 +38,7 @@ const SERVICE_HREFS: Record<string, string> = {
   outfits: "/results/outfits",
   wardrobe: "/results/wardrobe-personal",
   chat: "/results/chat",
+  mycloset: "/results/my-closet",
 }
 
 export default function ProfilePage() {
@@ -45,53 +47,73 @@ export default function ProfilePage() {
   const [purchases, setPurchases] = useState<Purchase[]>([])
   const [styleResults, setStyleResults] = useState<StyleResult[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [activeTab, setActiveTab] = useState<"purchases" | "history">("purchases")
 
-  useEffect(() => {
-    let cancelled = false
+  async function loadProfile(currentUser: SupabaseUser, cancelledRef: { current: boolean }) {
+    setUser(currentUser)
+    setLoadError(false)
 
-    async function loadProfile(currentUser: SupabaseUser) {
-      if (cancelled) return
-      setUser(currentUser)
+    try {
+      // ВАЖНО: оборачиваем запросы в try/catch — раньше, если запрос
+      // зависал или падал с ошибкой, страница крутила спиннер вечно,
+      // потому что setLoading(false) просто никогда не вызывался.
+      const [purchasesRes, resultsRes] = await Promise.all([
+        supabase
+          .from("purchases")
+          .select("*")
+          .eq("user_id", currentUser.id)
+          .order("purchased_at", { ascending: false }),
+        supabase
+          .from("style_results")
+          .select("*")
+          .eq("user_id", currentUser.id)
+          .order("created_at", { ascending: false }),
+      ])
 
-      // Загружаем покупки
-      const { data: purchasesData } = await supabase
-        .from("purchases")
-        .select("*")
-        .eq("user_id", currentUser.id)
-        .order("purchased_at", { ascending: false })
-      if (cancelled) return
-      setPurchases(purchasesData || [])
+      if (cancelledRef.current) return
 
-      // Загружаем историю разборов
-      const { data: resultsData } = await supabase
-        .from("style_results")
-        .select("*")
-        .eq("user_id", currentUser.id)
-        .order("created_at", { ascending: false })
-      if (cancelled) return
-      setStyleResults(resultsData || [])
+      if (purchasesRes.error) throw purchasesRes.error
+      if (resultsRes.error) throw resultsRes.error
 
-      setLoading(false)
+      setPurchases(purchasesRes.data || [])
+      setStyleResults(resultsRes.data || [])
+    } catch (e) {
+      console.error("Profile load error:", e)
+      if (!cancelledRef.current) setLoadError(true)
+    } finally {
+      if (!cancelledRef.current) setLoading(false)
     }
+  }
+
+  useEffect(() => {
+    const cancelledRef = { current: false }
 
     async function init() {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        await loadProfile(session.user)
-        return
-      }
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          await loadProfile(session.user, cancelledRef)
+          return
+        }
 
-      // Сессия не найдена сразу — частая ситуация на мобильных сразу после
-      // регистрации/входа, когда токен ещё не успел синхронизироваться.
-      // Пробуем обновить сессию прежде чем редиректить на главную.
-      const { data } = await supabase.auth.refreshSession()
-      if (data.session?.user) {
-        await loadProfile(data.session.user)
-        return
-      }
+        // Сессия не найдена сразу — частая ситуация на мобильных сразу после
+        // регистрации/входа, когда токен ещё не успел синхронизироваться.
+        // Пробуем обновить сессию прежде чем редиректить на главную.
+        const { data } = await supabase.auth.refreshSession()
+        if (data.session?.user) {
+          await loadProfile(data.session.user, cancelledRef)
+          return
+        }
 
-      if (!cancelled) router.push("/")
+        if (!cancelledRef.current) router.push("/")
+      } catch (e) {
+        console.error("Profile init error:", e)
+        if (!cancelledRef.current) {
+          setLoadError(true)
+          setLoading(false)
+        }
+      }
     }
 
     init()
@@ -100,15 +122,28 @@ export default function ProfilePage() {
     // подхватываем её через подписку на изменения, а не редиректим раньше времени.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user && !user) {
-        loadProfile(session.user)
+        loadProfile(session.user, cancelledRef)
       }
     })
 
     return () => {
-      cancelled = true
+      cancelledRef.current = true
       subscription.unsubscribe()
     }
   }, [router])
+
+  function handleRetry() {
+    setLoading(true)
+    setLoadError(false)
+    const cancelledRef = { current: false }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        loadProfile(session.user, cancelledRef)
+      } else {
+        router.push("/")
+      }
+    })
+  }
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -131,6 +166,27 @@ export default function ProfilePage() {
   if (loading) return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="h-10 w-10 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+    </div>
+  )
+
+  // ─── Ошибка загрузки — вместо вечного спиннера показываем понятное сообщение ───
+  if (loadError) return (
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="max-w-sm text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+          <AlertCircle className="h-6 w-6" />
+        </div>
+        <h1 className="mt-4 font-serif text-2xl">Не удалось загрузить профиль</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          Проверьте соединение с интернетом и попробуйте ещё раз.
+        </p>
+        <button
+          onClick={handleRetry}
+          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-accent px-6 py-3 text-sm font-medium text-accent-foreground hover:bg-accent/90 transition-colors"
+        >
+          <RefreshCw className="h-4 w-4" />Повторить
+        </button>
+      </div>
     </div>
   )
 
