@@ -7,7 +7,7 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY!
 // Пока отправка шла с onboarding@resend.dev (тестовый адрес), письма
 // молча не доходили никому, кроме владельца самого аккаунта Resend —
 // это ограничение самого Resend для неподтверждённых доменов.
-const FROM_ADDRESS = "ATELIER <noreply@atelier-ai.ru>"
+const FROM_ADDRESS = "ATELIER <hello@atelier-ai.ru>"
 
 export async function POST(req: NextRequest) {
   try {
