@@ -16,7 +16,7 @@ import { ResultStep } from "./result-step"
 import { Button } from "@/components/ui/button"
 import { supabase, saveStyleResult, uploadUserPhoto } from "@/lib/supabase"
 import type { User } from "@supabase/supabase-js"
-import { X } from "lucide-react"
+import { X, Mail } from "lucide-react"
 import { AppHeader } from "./app-header"
 import { AppFooter } from "./app-footer"
 
@@ -33,6 +33,10 @@ function AuthModal({ onClose, onSuccess }: {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [visible, setVisible] = useState(false)
+  // Показываем экран "проверьте почту" вместо формы, если после регистрации
+  // сессия не создалась сразу — значит в Supabase включено обязательное
+  // подтверждение email, и пользователь должен перейти по ссылке из письма.
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 10)
@@ -54,7 +58,16 @@ function AuthModal({ onClose, onSuccess }: {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, name }),
           }).catch(() => {})
-          onSuccess(data.user)
+
+          if (data.session) {
+            // Сессия создана сразу — подтверждение email не требуется
+            // (или отключено в настройках Supabase)
+            onSuccess(data.user)
+          } else {
+            // Сессии нет — почта требует подтверждения по ссылке из письма.
+            // НЕ считаем это успешным входом, честно предупреждаем.
+            setAwaitingConfirmation(true)
+          }
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password })
@@ -81,48 +94,66 @@ function AuthModal({ onClose, onSuccess }: {
         <button onClick={onClose} className="absolute right-4 top-4 text-muted-foreground hover:text-foreground">
           <X className="h-4 w-4" />
         </button>
-        <h2 className="font-serif text-2xl">
-          {mode === "login" ? "Добро пожаловать" : "Создать аккаунт"}
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {mode === "login" ? "Войдите, чтобы сохранять разборы." : "Зарегистрируйтесь бесплатно."}
-        </p>
-        <div className="mt-4 flex overflow-hidden rounded-lg border border-border">
-          <button onClick={() => setMode("login")}
-            className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === "login" ? "bg-accent text-accent-foreground" : "bg-transparent text-muted-foreground hover:bg-secondary"}`}>
-            Войти
-          </button>
-          <button onClick={() => setMode("register")}
-            className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === "register" ? "bg-accent text-accent-foreground" : "bg-transparent text-muted-foreground hover:bg-secondary"}`}>
-            Регистрация
-          </button>
-        </div>
-        <div className="mt-4 space-y-3">
-          {mode === "register" && (
-            <div>
-              <label className="text-sm font-medium">Имя</label>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ваше имя"
-                className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-accent" />
+
+        {awaitingConfirmation ? (
+          // ─── Экран "проверьте почту" ───
+          <div className="text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-accent/10">
+              <Mail className="h-6 w-6 text-accent" />
             </div>
-          )}
-          <div>
-            <label className="text-sm font-medium">Email</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="mail@example.com"
-              className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-accent" />
+            <h2 className="font-serif text-2xl">Проверьте почту</h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              Мы отправили письмо на <strong className="text-foreground">{email}</strong>.
+              Перейдите по ссылке в письме, чтобы подтвердить аккаунт — после этого сможете войти.
+            </p>
+            <Button onClick={onClose} className="mt-5 w-full">Понятно</Button>
           </div>
-          <div>
-            <label className="text-sm font-medium">Пароль</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
-              className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-accent" />
-          </div>
-        </div>
-        {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
-        <div className="mt-4 flex gap-2">
-          <Button variant="outline" onClick={onClose} className="flex-1">Отмена</Button>
-          <Button onClick={handleSubmit} disabled={loading} className="flex-1">
-            {loading ? "Загрузка..." : mode === "login" ? "Войти" : "Зарегистрироваться"}
-          </Button>
-        </div>
+        ) : (
+          <>
+            <h2 className="font-serif text-2xl">
+              {mode === "login" ? "Добро пожаловать" : "Создать аккаунт"}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {mode === "login" ? "Войдите, чтобы сохранять разборы." : "Зарегистрируйтесь бесплатно."}
+            </p>
+            <div className="mt-4 flex overflow-hidden rounded-lg border border-border">
+              <button onClick={() => setMode("login")}
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === "login" ? "bg-accent text-accent-foreground" : "bg-transparent text-muted-foreground hover:bg-secondary"}`}>
+                Войти
+              </button>
+              <button onClick={() => setMode("register")}
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === "register" ? "bg-accent text-accent-foreground" : "bg-transparent text-muted-foreground hover:bg-secondary"}`}>
+                Регистрация
+              </button>
+            </div>
+            <div className="mt-4 space-y-3">
+              {mode === "register" && (
+                <div>
+                  <label className="text-sm font-medium">Имя</label>
+                  <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ваше имя"
+                    className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-accent" />
+                </div>
+              )}
+              <div>
+                <label className="text-sm font-medium">Email</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="mail@example.com"
+                  className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-accent" />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Пароль</label>
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
+                  className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-accent" />
+              </div>
+            </div>
+            {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+            <div className="mt-4 flex gap-2">
+              <Button variant="outline" onClick={onClose} className="flex-1">Отмена</Button>
+              <Button onClick={handleSubmit} disabled={loading} className="flex-1">
+                {loading ? "Загрузка..." : mode === "login" ? "Войти" : "Зарегистрироваться"}
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
